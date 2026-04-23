@@ -6,24 +6,29 @@ struct PaletteGrid: View {
     var onSelect: (PaletteSwatch) -> Void
 
     private let columns: Int = 5
+    private let rows: Int = 5
     private let spacing: CGFloat = 10
 
     var body: some View {
         GeometryReader { proxy in
             let tileSize = (proxy.size.width - spacing * CGFloat(columns - 1)) / CGFloat(columns)
 
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: columns),
-                spacing: spacing
-            ) {
-                ForEach(swatches) { swatch in
-                    PressableTile(
-                        color: swatch.color,
-                        size: tileSize,
-                        isSelected: swatch.id == selectedId,
-                        action: { onSelect(swatch) }
-                    )
-                    .frame(width: tileSize, height: tileSize)
+            VStack(spacing: spacing) {
+                ForEach(0..<rows, id: \.self) { row in
+                    HStack(spacing: spacing) {
+                        ForEach(0..<columns, id: \.self) { col in
+                            let idx = row * columns + col
+                            if idx < swatches.count {
+                                let swatch = swatches[idx]
+                                PressablePaletteTile(
+                                    color: swatch.color,
+                                    size: tileSize,
+                                    isSelected: swatch.id == selectedId,
+                                    action: { onSelect(swatch) }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -37,6 +42,6 @@ struct PaletteGrid: View {
         selectedId: "d1_12",
         onSelect: { _ in }
     )
-    .padding(24)
+    .padding(28)
     .background(PaletteTheme.background)
 }
