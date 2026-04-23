@@ -9,8 +9,12 @@ struct GalleryView: View {
     @Query(sort: \ColorEntry.date) private var allEntries: [ColorEntry]
 
     @State private var mode: GalleryMode = .weekly
-    @State private var selectedDate: Date? = nil
-    @State private var showDetail: Bool = false
+    @State private var selectedDay: SelectedDay? = nil
+
+    private struct SelectedDay: Identifiable {
+        let id: String
+        let date: Date
+    }
 
     private let year: Int
     private let firstWeekday: Int
@@ -47,14 +51,12 @@ struct GalleryView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .sheet(isPresented: $showDetail) {
-            if let date = selectedDate {
-                DayDetailSheet(
-                    date: date,
-                    entry: entriesByKey[DayKey.make(for: date)],
-                    onChanged: { showDetail = false }
-                )
-            }
+        .sheet(item: $selectedDay) { day in
+            DayDetailSheet(
+                date: day.date,
+                entry: entriesByKey[day.id],
+                onChanged: { selectedDay = nil }
+            )
         }
     }
 
@@ -151,8 +153,7 @@ struct GalleryView: View {
     }
 
     private func handleSelect(_ date: Date) {
-        selectedDate = date
-        showDetail = true
+        selectedDay = SelectedDay(id: DayKey.make(for: date), date: date)
     }
 }
 
