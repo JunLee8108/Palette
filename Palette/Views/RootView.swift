@@ -16,7 +16,7 @@ struct RootView: View {
                 })
                 .tag(0)
 
-                YearGridView()
+                GalleryView()
                     .tag(1)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
