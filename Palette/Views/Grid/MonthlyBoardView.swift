@@ -4,6 +4,7 @@ struct MonthlyBoardView: View {
     let year: Int
     let firstWeekday: Int
     let entriesByKey: [String: ColorEntry]
+    let scrollToTodayTick: Int
     var onSelectDate: (Date) -> Void
 
     @State private var didAutoScroll: Bool = false
@@ -57,6 +58,12 @@ struct MonthlyBoardView: View {
                             withAnimation(.none) {
                                 scroller.scrollTo(target, anchor: .top)
                             }
+                        }
+                    }
+                    .onChange(of: scrollToTodayTick) { _, _ in
+                        let target = currentMonth
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            scroller.scrollTo(target, anchor: .top)
                         }
                     }
                 }
@@ -144,6 +151,7 @@ struct MonthlyBoardView: View {
         year: DayKey.year(of: Date()),
         firstWeekday: Calendar.current.firstWeekday,
         entriesByKey: [:],
+        scrollToTodayTick: 0,
         onSelectDate: { _ in }
     )
     .background(PaletteTheme.background)
