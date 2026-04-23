@@ -8,6 +8,7 @@ struct TodayView: View {
     @AppStorage("palette.username") private var username: String = ""
 
     @State private var showSettings: Bool = false
+    @State private var showPalette: Bool = false
     @State private var selectedSwatchId: String? = nil
     @State private var previewColorHex: String? = nil
     @State private var animatingFill: Bool = false
@@ -55,14 +56,14 @@ struct TodayView: View {
             PaletteTheme.background.ignoresSafeArea()
 
             VStack(spacing: 28) {
-                Spacer(minLength: 8)
+                Spacer()
 
                 Text(dayFormatter.string(from: today))
                     .font(.system(size: 44, weight: .thin, design: .serif))
                     .tracking(0.5)
                     .foregroundStyle(PaletteTheme.primaryText)
 
-                previewTile
+                previewButton
 
                 Text(greeting)
                     .font(.system(size: 13, weight: .regular))
@@ -70,15 +71,8 @@ struct TodayView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
 
-                Spacer(minLength: 12)
-
-                PaletteGrid(
-                    swatches: DefaultPalette.swatches,
-                    selectedId: selectedSwatchId ?? todayEntry?.swatchId,
-                    onSelect: handleSelect
-                )
-                .padding(.horizontal, 28)
-                .padding(.bottom, 24)
+                Spacer()
+                Spacer()
             }
 
             settingsButton
@@ -86,22 +80,61 @@ struct TodayView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }
+        .sheet(isPresented: $showPalette) {
+            paletteSheet
+                .presentationDetents([.height(460)])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(PaletteTheme.background)
+        }
         .sensoryFeedback(.impact(weight: .medium), trigger: selectedSwatchId)
     }
 
-    // MARK: Preview tile
+    // MARK: Preview
 
-    private var previewTile: some View {
-        ZStack {
-            if let color = previewColor {
-                ColorTile(color: color, size: 148)
-                    .scaleEffect(animatingFill ? 1.06 : 1.0)
-                    .animation(.spring(response: 0.55, dampingFraction: 0.65), value: animatingFill)
-            } else {
-                ColorTile(color: .clear, size: 148, isEmpty: true)
+    private var previewButton: some View {
+        Button(action: { showPalette = true }) {
+            VStack(spacing: 12) {
+                ZStack {
+                    if let color = previewColor {
+                        ColorTile(color: color, size: 168)
+                            .scaleEffect(animatingFill ? 1.05 : 1.0)
+                            .animation(.spring(response: 0.55, dampingFraction: 0.65), value: animatingFill)
+                    } else {
+                        ColorTile(color: .clear, size: 168, isEmpty: true)
+                    }
+                }
+                .frame(height: 168)
+
+                if todayEntry != nil {
+                    Text(L10n.t("Change", "변경"))
+                        .font(.system(size: 11, weight: .semibold))
+                        .tracking(1.5)
+                        .foregroundStyle(PaletteTheme.tertiaryText)
+                        .textCase(.uppercase)
+                        .transition(.opacity)
+                }
             }
+            .contentShape(Rectangle())
         }
-        .frame(height: 148)
+        .buttonStyle(.plain)
+        .accessibilityLabel(todayEntry == nil
+                            ? L10n.t("Pick today's color", "오늘의 색 고르기")
+                            : L10n.t("Change today's color", "오늘의 색 바꾸기"))
+    }
+
+    // MARK: Palette sheet
+
+    private var paletteSheet: some View {
+        VStack {
+            Spacer(minLength: 24)
+            PaletteGrid(
+                swatches: DefaultPalette.swatches,
+                selectedId: selectedSwatchId ?? todayEntry?.swatchId,
+                onSelect: handleSelect
+            )
+            .padding(.horizontal, 28)
+            Spacer(minLength: 24)
+        }
     }
 
     // MARK: Settings
@@ -133,6 +166,8 @@ struct TodayView: View {
 
     private func handleSelect(_ swatch: PaletteSwatch) {
         selectedSwatchId = swatch.id
+        showPalette = false
+
         withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
             previewColorHex = swatch.hex
             animatingFill = true
