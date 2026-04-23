@@ -77,7 +77,7 @@ struct YearlyBoardView: View {
     }
 
     private func gridBody(cellSize: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: cellSpacing) {
+        LazyVStack(alignment: .leading, spacing: cellSpacing) {
             ForEach(0..<totalRows, id: \.self) { row in
                 HStack(spacing: 8) {
                     Text(monthLabelByRow[row] ?? "")

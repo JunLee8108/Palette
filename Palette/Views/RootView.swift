@@ -23,6 +23,7 @@ struct RootView: View {
 
     private var entriesByKey: [String: ColorEntry] {
         var dict: [String: ColorEntry] = [:]
+        dict.reserveCapacity(allEntries.count)
         for entry in allEntries where DayKey.year(of: entry.date) == year {
             dict[entry.dayKey] = entry
         }
