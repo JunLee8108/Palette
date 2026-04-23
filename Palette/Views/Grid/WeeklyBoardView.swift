@@ -142,7 +142,7 @@ struct WeekSlot: Identifiable {
             let inYear = dates.compactMap { $0 }
             let label: String
             if inYear.count >= 2, let first = inYear.first, let last = inYear.last {
-                label = interval.string(from: first, to: last) ?? ""
+                label = interval.string(from: first, to: last)
             } else if let only = inYear.first {
                 label = single.string(from: only)
             } else {
