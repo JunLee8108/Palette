@@ -4,7 +4,11 @@ struct MonthlyBoardView: View {
     let year: Int
     let firstWeekday: Int
     let entriesByKey: [String: ColorEntry]
+    var topInset: CGFloat = 0
+    var scrollToTodaySignal: Int = 0
     var onSelectDate: (Date) -> Void
+
+    @State private var didAutoScroll: Bool = false
 
     private let hPadding: CGFloat = 24
     private let tileSpacing: CGFloat = 6
@@ -31,7 +35,8 @@ struct MonthlyBoardView: View {
             VStack(spacing: 0) {
                 weekdayHeader(tileSize: tileSize)
                     .padding(.horizontal, hPadding)
-                    .padding(.vertical, 10)
+                    .padding(.top, topInset + 8)
+                    .padding(.bottom, 10)
 
                 Divider().overlay(PaletteTheme.hairline.opacity(0.6))
 
@@ -48,11 +53,18 @@ struct MonthlyBoardView: View {
                         .padding(.bottom, 40)
                     }
                     .onAppear {
+                        guard !didAutoScroll else { return }
+                        didAutoScroll = true
                         let target = currentMonth
                         DispatchQueue.main.async {
                             withAnimation(.none) {
                                 scroller.scrollTo(target, anchor: .top)
                             }
+                        }
+                    }
+                    .onChange(of: scrollToTodaySignal) { _, _ in
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            scroller.scrollTo(currentMonth, anchor: .top)
                         }
                     }
                 }

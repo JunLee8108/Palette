@@ -4,6 +4,8 @@ struct YearlyBoardView: View {
     let year: Int
     let firstWeekday: Int
     let entriesByKey: [String: ColorEntry]
+    var topInset: CGFloat = 0
+    var scrollToTodaySignal: Int = 0
     var onSelectDate: (Date) -> Void
 
     private let hPadding: CGFloat = 24
@@ -44,22 +46,35 @@ struct YearlyBoardView: View {
         return result
     }
 
+    private var todayRow: Int? {
+        guard DayKey.year(of: Date()) == year else { return nil }
+        return gridPosition(for: Date())?.row
+    }
+
     var body: some View {
         GeometryReader { proxy in
             let availableWidth = proxy.size.width - hPadding * 2 - monthLabelWidth - 8
             let cellSize = max(14, (availableWidth - cellSpacing * 6) / 7)
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    weekdayHeader(cellSize: cellSize)
-                        .padding(.leading, monthLabelWidth + 8)
+            ScrollViewReader { scroller in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        weekdayHeader(cellSize: cellSize)
+                            .padding(.leading, monthLabelWidth + 8)
 
-                    gridBody(cellSize: cellSize)
+                        gridBody(cellSize: cellSize)
 
-                    Spacer(minLength: 40)
+                        Spacer(minLength: 40)
+                    }
+                    .padding(.horizontal, hPadding)
+                    .padding(.top, topInset + 8)
                 }
-                .padding(.horizontal, hPadding)
-                .padding(.top, 10)
+                .onChange(of: scrollToTodaySignal) { _, _ in
+                    guard let row = todayRow else { return }
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        scroller.scrollTo(row, anchor: .center)
+                    }
+                }
             }
         }
     }
@@ -92,6 +107,7 @@ struct YearlyBoardView: View {
                         }
                     }
                 }
+                .id(row)
             }
         }
     }
