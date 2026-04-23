@@ -109,7 +109,7 @@ struct RootView: View {
 
     // MARK: - Gallery header (Week / Month / Year)
 
-    private var galleryTopInset: CGFloat { 110 }
+    private var galleryTopInset: CGFloat { 130 }
 
     private var galleryHeader: some View {
         VStack(spacing: 0) {
@@ -147,7 +147,7 @@ struct RootView: View {
     }
 
     private var modeSwitcher: some View {
-        HStack(spacing: 28) {
+        HStack(spacing: 8) {
             modeButton(tab: 1, label: L10n.t("Week", "주"))
             modeButton(tab: 2, label: L10n.t("Month", "월"))
             modeButton(tab: 3, label: L10n.t("Year", "연"))
@@ -157,7 +157,7 @@ struct RootView: View {
     private func modeButton(tab: Int, label: String) -> some View {
         let isActive = currentTab == tab
         return Button {
-            withAnimation(.easeInOut(duration: 0.35)) {
+            withAnimation(.snappy) {
                 scrollId = tab
             }
         } label: {
@@ -171,6 +171,8 @@ struct RootView: View {
                     .fill(isActive ? PaletteTheme.primaryText : .clear)
                     .frame(width: 14, height: 1.5)
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 12)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
