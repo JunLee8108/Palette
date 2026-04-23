@@ -13,6 +13,8 @@ struct DayDetailSheet: View {
     @State private var detent: PresentationDetent = .medium
     @State private var selectedSwatchId: String? = nil
     @State private var pendingColorHex: String? = nil
+    @State private var showChangeWarning: Bool = false
+    @State private var showClearWarning: Bool = false
 
     private enum Page { case detail, palette }
 
@@ -35,6 +37,9 @@ struct DayDetailSheet: View {
     private var isToday: Bool { DayKey.isToday(date) }
     private var isFuture: Bool { ColorStore.isFuture(date) }
     private var displayColorHex: String? { pendingColorHex ?? entry?.colorHex }
+    private var needsOverrideConfirmation: Bool {
+        ColorStore.requiresOverrideConfirmation(for: date, hasEntry: entry != nil)
+    }
 
     var body: some View {
         ZStack {
@@ -51,6 +56,34 @@ struct DayDetailSheet: View {
         .presentationDragIndicator(.visible)
         .presentationBackground(PaletteTheme.background)
         .sensoryFeedback(.impact(weight: .medium), trigger: selectedSwatchId)
+        .alert(
+            L10n.t("Change this day's color?", "이 날의 색을 바꾸시겠어요?"),
+            isPresented: $showChangeWarning
+        ) {
+            Button(L10n.t("Keep it", "그대로 두기"), role: .cancel) {}
+            Button(L10n.t("Change", "바꾸기"), role: .destructive) {
+                openPalette()
+            }
+        } message: {
+            Text(L10n.t(
+                "This color is this day's unique record. We suggest keeping it. Change anyway?",
+                "이 색은 이날 하루를 기록한 유니크한 색이에요. 가능하면 그대로 두시길 추천드리지만, 정말 바꾸시겠어요?"
+            ))
+        }
+        .alert(
+            L10n.t("Clear this day's color?", "이 날의 색을 지우시겠어요?"),
+            isPresented: $showClearWarning
+        ) {
+            Button(L10n.t("Keep it", "그대로 두기"), role: .cancel) {}
+            Button(L10n.t("Clear", "지우기"), role: .destructive) {
+                clearEntry()
+            }
+        } message: {
+            Text(L10n.t(
+                "This color is this day's unique record. We suggest keeping it. Clear anyway?",
+                "이 색은 이날 하루를 기록한 유니크한 색이에요. 가능하면 그대로 두시길 추천드리지만, 정말 지우시겠어요?"
+            ))
+        }
     }
 
     // MARK: - Detail page
@@ -109,14 +142,14 @@ struct DayDetailSheet: View {
         if canPick || canDelete {
             VStack(spacing: 12) {
                 if canDelete {
-                    Button(action: clearEntry) {
-                        actionLabel(L10n.t("Clear today", "오늘 색 지우기"), primary: false)
+                    Button(action: handleClearTap) {
+                        actionLabel(clearLabel, primary: false)
                     }
                     .buttonStyle(.plain)
                 }
 
                 if canPick {
-                    Button(action: openPalette) {
+                    Button(action: handlePickTap) {
                         actionLabel(pickLabel, primary: true)
                     }
                     .buttonStyle(.plain)
@@ -133,6 +166,13 @@ struct DayDetailSheet: View {
             return L10n.t("Pick today's color", "오늘의 색 고르기")
         }
         return L10n.t("Pick a color", "색 고르기")
+    }
+
+    private var clearLabel: String {
+        if isToday {
+            return L10n.t("Clear today", "오늘 색 지우기")
+        }
+        return L10n.t("Clear color", "색 지우기")
     }
 
     private var statusText: String {
@@ -212,6 +252,22 @@ struct DayDetailSheet: View {
     }
 
     // MARK: - Actions
+
+    private func handlePickTap() {
+        if needsOverrideConfirmation {
+            showChangeWarning = true
+        } else {
+            openPalette()
+        }
+    }
+
+    private func handleClearTap() {
+        if needsOverrideConfirmation {
+            showClearWarning = true
+        } else {
+            clearEntry()
+        }
+    }
 
     private func openPalette() {
         withAnimation(.easeInOut(duration: 0.3)) {

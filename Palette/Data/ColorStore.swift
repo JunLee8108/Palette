@@ -57,24 +57,30 @@ enum ColorStore {
         delete(for: Date(), in: context)
     }
 
-    // MARK: Rules (Option B)
+    // MARK: Rules
     //
     // - Future: always read-only.
-    // - Today: always editable (pick, change, delete).
+    // - Today: freely editable (pick, change, delete).
     // - Past + empty: can pick a color.
-    // - Past + already has a color: read-only (preserves record integrity).
+    // - Past + already has a color: editable, but the UI gates the change/
+    //   delete behind a confirmation to discourage casual edits.
 
     static func isFuture(_ date: Date) -> Bool {
         DayKey.startOfDay(date) > DayKey.startOfDay(Date())
     }
 
     static func canPickColor(for date: Date, hasEntry: Bool) -> Bool {
-        if isFuture(date) { return false }
-        if DayKey.isToday(date) { return true }
-        return !hasEntry
+        !isFuture(date)
     }
 
     static func canDelete(for date: Date) -> Bool {
-        DayKey.isToday(date)
+        !isFuture(date)
+    }
+
+    static func requiresOverrideConfirmation(for date: Date, hasEntry: Bool) -> Bool {
+        guard hasEntry else { return false }
+        if DayKey.isToday(date) { return false }
+        if isFuture(date) { return false }
+        return true
     }
 }
