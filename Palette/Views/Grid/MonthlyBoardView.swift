@@ -6,6 +6,8 @@ struct MonthlyBoardView: View {
     let entriesByKey: [String: ColorEntry]
     var onSelectDate: (Date) -> Void
 
+    @State private var didAutoScroll: Bool = false
+
     private let hPadding: CGFloat = 24
     private let tileSpacing: CGFloat = 6
     private let monthSpacing: CGFloat = 36
@@ -48,6 +50,8 @@ struct MonthlyBoardView: View {
                         .padding(.bottom, 40)
                     }
                     .onAppear {
+                        guard !didAutoScroll else { return }
+                        didAutoScroll = true
                         let target = currentMonth
                         DispatchQueue.main.async {
                             withAnimation(.none) {
