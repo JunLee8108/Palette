@@ -8,10 +8,7 @@ struct OnboardingReminderPage: View {
     @State private var textIn: Bool = false
 
     private static func defaultDraftTime() -> Date {
-        var comps = DateComponents()
-        comps.hour = 21
-        comps.minute = 0
-        return Calendar.current.date(from: comps) ?? Date()
+        Calendar.current.date(bySettingHour: 21, minute: 0, second: 0, of: Date()) ?? Date()
     }
 
     var body: some View {

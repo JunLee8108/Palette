@@ -215,10 +215,7 @@ struct SettingsView: View {
     }
 
     private func defaultReminderTime() -> Date {
-        var comps = DateComponents()
-        comps.hour = 21
-        comps.minute = 0
-        return Calendar.current.date(from: comps) ?? Date()
+        Calendar.current.date(bySettingHour: 21, minute: 0, second: 0, of: Date()) ?? Date()
     }
 
     private func timeString(_ date: Date) -> String {
