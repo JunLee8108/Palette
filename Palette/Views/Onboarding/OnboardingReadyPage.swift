@@ -1,8 +1,17 @@
 import SwiftUI
 
 struct OnboardingReadyPage: View {
+    var username: String = ""
+
     @State private var tileIn: Bool = false
     @State private var textIn: Bool = false
+
+    private var heading: String {
+        if username.isEmpty {
+            return L10n.t("You're ready.", "준비 완료.")
+        }
+        return L10n.t("Ready, \(username).", "\(username)님, 준비 완료.")
+    }
 
     var body: some View {
         VStack(spacing: 40) {
@@ -14,11 +23,12 @@ struct OnboardingReadyPage: View {
                 .animation(.spring(response: 0.55, dampingFraction: 0.7), value: tileIn)
 
             VStack(spacing: 16) {
-                Text(L10n.t("You're ready.", "준비 완료."))
+                Text(heading)
                     .font(.system(size: 36, weight: .thin, design: .serif))
                     .tracking(0.5)
                     .foregroundStyle(PaletteTheme.primaryText)
                     .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
 
                 Text(L10n.t(
                     "Your first color is today.\nThree seconds. That's all.",
@@ -45,7 +55,12 @@ struct OnboardingReadyPage: View {
     }
 }
 
-#Preview {
+#Preview("with name") {
+    OnboardingReadyPage(username: "Jun")
+        .background(PaletteTheme.background)
+}
+
+#Preview("no name") {
     OnboardingReadyPage()
         .background(PaletteTheme.background)
 }
