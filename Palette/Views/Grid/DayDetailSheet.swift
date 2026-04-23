@@ -57,11 +57,11 @@ struct DayDetailSheet: View {
 
     private var detailContent: some View {
         VStack(spacing: 0) {
-            Spacer().frame(height: 28)
+            Spacer(minLength: 28)
 
             currentTile
 
-            Spacer().frame(height: 32)
+            Spacer().frame(height: 28)
 
             VStack(spacing: 8) {
                 Text(dateFormatter.string(from: date))
@@ -75,11 +75,12 @@ struct DayDetailSheet: View {
                 }
             }
 
-            Spacer()
+            Spacer().frame(height: 28)
 
             actionButtons
                 .padding(.horizontal, 24)
-                .padding(.bottom, 28)
+
+            Spacer(minLength: 28)
         }
     }
 
