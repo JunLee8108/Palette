@@ -1,61 +1,38 @@
-//
-//  ContentView.swift
-//  Palette
-//
-//  Created by Jun Lee on 4/23/26.
-//
-
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @AppStorage("palette.hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
+
+    @State private var showLaunch: Bool = true
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+        ZStack {
+            if hasCompletedOnboarding {
+                TodayView()
+                    .transition(.opacity)
+            } else {
+                OnboardingView(onComplete: {
+                    withAnimation(.easeInOut(duration: 0.4)) {
+                        hasCompletedOnboarding = true
                     }
-                }
-                .onDelete(perform: deleteItems)
+                })
+                .transition(.opacity)
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+
+            if showLaunch {
+                LaunchView(onFinish: {
+                    withAnimation(.easeInOut(duration: 0.4)) {
+                        showLaunch = false
                     }
-                }
-            }
-        } detail: {
-            Text("Select an item")
-        }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+                })
+                .transition(.opacity)
+                .zIndex(1)
             }
         }
+        .animation(.easeInOut(duration: 0.4), value: hasCompletedOnboarding)
     }
 }
 
-#Preview {
+#Preview("First launch") {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
 }

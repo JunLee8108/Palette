@@ -1,10 +1,3 @@
-//
-//  PaletteApp.swift
-//  Palette
-//
-//  Created by Jun Lee on 4/23/26.
-//
-
 import SwiftUI
 import SwiftData
 
@@ -26,6 +19,8 @@ struct PaletteApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .preferredColorScheme(.light)
+                .tint(PaletteTheme.primaryText)
         }
         .modelContainer(sharedModelContainer)
     }
