@@ -11,14 +11,14 @@ enum ColorStore {
     }
 
     @discardableResult
-    static func upsertToday(
+    static func upsert(
         swatch: PaletteSwatch,
+        for date: Date,
         in context: ModelContext
     ) -> ColorEntry {
-        let now = Date()
-        let key = DayKey.make(for: now)
+        let key = DayKey.make(for: date)
 
-        if let existing = entry(for: now, in: context) {
+        if let existing = entry(for: date, in: context) {
             existing.colorHex = swatch.hex
             existing.swatchId = swatch.id
             existing.paletteId = DefaultPalette.id
@@ -29,7 +29,7 @@ enum ColorStore {
 
         let entry = ColorEntry(
             dayKey: key,
-            date: DayKey.startOfDay(now),
+            date: DayKey.startOfDay(date),
             colorHex: swatch.hex,
             swatchId: swatch.id,
             paletteId: DefaultPalette.id
@@ -39,13 +39,42 @@ enum ColorStore {
         return entry
     }
 
-    static func deleteToday(in context: ModelContext) {
-        guard let entry = entry(for: Date(), in: context) else { return }
+    @discardableResult
+    static func upsertToday(
+        swatch: PaletteSwatch,
+        in context: ModelContext
+    ) -> ColorEntry {
+        upsert(swatch: swatch, for: Date(), in: context)
+    }
+
+    static func delete(for date: Date, in context: ModelContext) {
+        guard let entry = entry(for: date, in: context) else { return }
         context.delete(entry)
         try? context.save()
     }
 
-    static func canEdit(_ date: Date) -> Bool {
+    static func deleteToday(in context: ModelContext) {
+        delete(for: Date(), in: context)
+    }
+
+    // MARK: Rules (Option B)
+    //
+    // - Future: always read-only.
+    // - Today: always editable (pick, change, delete).
+    // - Past + empty: can pick a color.
+    // - Past + already has a color: read-only (preserves record integrity).
+
+    static func isFuture(_ date: Date) -> Bool {
+        DayKey.startOfDay(date) > DayKey.startOfDay(Date())
+    }
+
+    static func canPickColor(for date: Date, hasEntry: Bool) -> Bool {
+        if isFuture(date) { return false }
+        if DayKey.isToday(date) { return true }
+        return !hasEntry
+    }
+
+    static func canDelete(for date: Date) -> Bool {
         DayKey.isToday(date)
     }
 }
