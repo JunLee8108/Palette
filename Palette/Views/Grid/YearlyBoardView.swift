@@ -1,32 +1,14 @@
 import SwiftUI
-import SwiftData
 
-struct YearGridView: View {
-    @Environment(\.modelContext) private var context
-    @Query(sort: \ColorEntry.date) private var allEntries: [ColorEntry]
+struct YearlyBoardView: View {
+    let year: Int
+    let firstWeekday: Int
+    let entriesByKey: [String: ColorEntry]
+    var onSelectDate: (Date) -> Void
 
-    @State private var selectedDate: Date? = nil
-    @State private var showDetail: Bool = false
-
-    private let year: Int
-    private let firstWeekday: Int
+    private let hPadding: CGFloat = 24
     private let cellSpacing: CGFloat = 4
     private let monthLabelWidth: CGFloat = 30
-
-    init(year: Int? = nil) {
-        self.year = year ?? DayKey.year(of: Date())
-        self.firstWeekday = Calendar.current.firstWeekday
-    }
-
-    private var entriesByKey: [String: ColorEntry] {
-        var dict: [String: ColorEntry] = [:]
-        for entry in allEntries where DayKey.year(of: entry.date) == year {
-            dict[entry.dayKey] = entry
-        }
-        return dict
-    }
-
-    private var filledCount: Int { entriesByKey.count }
 
     private var jan1Column: Int {
         let jan1 = DayKey.january1(of: year)
@@ -63,72 +45,24 @@ struct YearGridView: View {
     }
 
     var body: some View {
-        ZStack {
-            PaletteTheme.background.ignoresSafeArea()
+        GeometryReader { proxy in
+            let availableWidth = proxy.size.width - hPadding * 2 - monthLabelWidth - 8
+            let cellSize = max(14, (availableWidth - cellSpacing * 6) / 7)
 
-            GeometryReader { proxy in
-                let availableWidth = proxy.size.width - monthLabelWidth - 16 - 48
-                let cellSize = max(16, (availableWidth - cellSpacing * 6) / 7)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    weekdayHeader(cellSize: cellSize)
+                        .padding(.leading, monthLabelWidth + 8)
 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
-                        header
+                    gridBody(cellSize: cellSize)
 
-                        weekdayHeader(cellSize: cellSize)
-                            .padding(.leading, monthLabelWidth + 8)
-
-                        gridBody(cellSize: cellSize)
-
-                        Spacer(minLength: 40)
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 16)
+                    Spacer(minLength: 40)
                 }
-            }
-        }
-        .sheet(isPresented: $showDetail) {
-            if let date = selectedDate {
-                DayDetailSheet(
-                    date: date,
-                    entry: entriesByKey[DayKey.make(for: date)],
-                    onChanged: { showDetail = false }
-                )
-                .presentationDetents([.height(360)])
-                .presentationDragIndicator(.visible)
-                .presentationBackground(PaletteTheme.background)
+                .padding(.horizontal, hPadding)
+                .padding(.top, 10)
             }
         }
     }
-
-    // MARK: Header
-
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(verbatim: "\(year)")
-                .font(.system(size: 34, weight: .thin, design: .serif))
-                .tracking(1)
-                .foregroundStyle(PaletteTheme.primaryText)
-                .monospacedDigit()
-
-            Spacer()
-
-            Text(countText)
-                .font(.system(size: 13, weight: .medium))
-                .tracking(0.5)
-                .foregroundStyle(PaletteTheme.secondaryText)
-                .monospacedDigit()
-        }
-    }
-
-    private var countText: String {
-        let n = filledCount
-        return L10n.t(
-            n == 1 ? "1 day" : "\(n) days",
-            "\(n)일"
-        )
-    }
-
-    // MARK: Weekday header
 
     private func weekdayHeader(cellSize: CGFloat) -> some View {
         HStack(spacing: cellSpacing) {
@@ -141,8 +75,6 @@ struct YearGridView: View {
             }
         }
     }
-
-    // MARK: Grid body
 
     private func gridBody(cellSize: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: cellSpacing) {
@@ -180,8 +112,7 @@ struct YearGridView: View {
             let isToday = DayKey.isToday(date)
 
             Button {
-                selectedDate = date
-                showDetail = true
+                onSelectDate(date)
             } label: {
                 GridCell(
                     size: size,
@@ -194,8 +125,6 @@ struct YearGridView: View {
         }
     }
 
-    // MARK: Position calc
-
     private func gridPosition(for date: Date) -> (row: Int, col: Int)? {
         let cal = Calendar.current
         guard let ord = cal.ordinality(of: .day, in: .year, for: date) else { return nil }
@@ -205,6 +134,11 @@ struct YearGridView: View {
 }
 
 #Preview {
-    YearGridView()
-        .modelContainer(for: ColorEntry.self, inMemory: true)
+    YearlyBoardView(
+        year: DayKey.year(of: Date()),
+        firstWeekday: Calendar.current.firstWeekday,
+        entriesByKey: [:],
+        onSelectDate: { _ in }
+    )
+    .background(PaletteTheme.background)
 }
