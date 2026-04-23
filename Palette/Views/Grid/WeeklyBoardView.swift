@@ -6,6 +6,8 @@ struct WeeklyBoardView: View {
     let entriesByKey: [String: ColorEntry]
     var onSelectDate: (Date) -> Void
 
+    @State private var didAutoScroll: Bool = false
+
     private let hPadding: CGFloat = 24
     private let tileSpacing: CGFloat = 6
     private let rowSpacing: CGFloat = 24
@@ -36,11 +38,11 @@ struct WeeklyBoardView: View {
                     .padding(.bottom, 40)
                 }
                 .onAppear {
-                    if let id = currentWeekId {
-                        DispatchQueue.main.async {
-                            withAnimation(.none) {
-                                scroller.scrollTo(id, anchor: .top)
-                            }
+                    guard !didAutoScroll, let id = currentWeekId else { return }
+                    didAutoScroll = true
+                    DispatchQueue.main.async {
+                        withAnimation(.none) {
+                            scroller.scrollTo(id, anchor: .top)
                         }
                     }
                 }
