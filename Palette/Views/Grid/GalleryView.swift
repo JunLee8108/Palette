@@ -54,9 +54,6 @@ struct GalleryView: View {
                     entry: entriesByKey[DayKey.make(for: date)],
                     onChanged: { showDetail = false }
                 )
-                .presentationDetents([.height(360)])
-                .presentationDragIndicator(.visible)
-                .presentationBackground(PaletteTheme.background)
             }
         }
     }
