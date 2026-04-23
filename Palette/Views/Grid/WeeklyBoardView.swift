@@ -4,6 +4,7 @@ struct WeeklyBoardView: View {
     let year: Int
     let firstWeekday: Int
     let entriesByKey: [String: ColorEntry]
+    let scrollToTodayTick: Int
     var onSelectDate: (Date) -> Void
 
     @State private var didAutoScroll: Bool = false
@@ -44,6 +45,12 @@ struct WeeklyBoardView: View {
                         withAnimation(.none) {
                             scroller.scrollTo(id, anchor: .top)
                         }
+                    }
+                }
+                .onChange(of: scrollToTodayTick) { _, _ in
+                    guard let id = currentWeekId else { return }
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        scroller.scrollTo(id, anchor: .top)
                     }
                 }
             }
@@ -162,6 +169,7 @@ struct WeekSlot: Identifiable {
         year: DayKey.year(of: Date()),
         firstWeekday: Calendar.current.firstWeekday,
         entriesByKey: [:],
+        scrollToTodayTick: 0,
         onSelectDate: { _ in }
     )
     .background(PaletteTheme.background)

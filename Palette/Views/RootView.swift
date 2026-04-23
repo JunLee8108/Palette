@@ -6,6 +6,8 @@ struct RootView: View {
 
     @State private var scrollId: Int? = 0
     @State private var selectedDay: SelectedDay? = nil
+    @State private var weekScrollTick: Int = 0
+    @State private var monthScrollTick: Int = 0
 
     private struct SelectedDay: Identifiable {
         let id: String
@@ -53,6 +55,7 @@ struct RootView: View {
                             year: year,
                             firstWeekday: firstWeekday,
                             entriesByKey: entriesByKey,
+                            scrollToTodayTick: weekScrollTick,
                             onSelectDate: handleSelect
                         )
                         .padding(.top, galleryTopInset)
@@ -64,6 +67,7 @@ struct RootView: View {
                             year: year,
                             firstWeekday: firstWeekday,
                             entriesByKey: entriesByKey,
+                            scrollToTodayTick: monthScrollTick,
                             onSelectDate: handleSelect
                         )
                         .padding(.top, galleryTopInset)
@@ -157,8 +161,16 @@ struct RootView: View {
     private func modeButton(tab: Int, label: String) -> some View {
         let isActive = currentTab == tab
         return Button {
-            withAnimation(.snappy) {
-                scrollId = tab
+            if isActive {
+                switch tab {
+                case 1: weekScrollTick += 1
+                case 2: monthScrollTick += 1
+                default: break
+                }
+            } else {
+                withAnimation(.snappy) {
+                    scrollId = tab
+                }
             }
         } label: {
             VStack(spacing: 6) {
