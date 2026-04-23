@@ -4,7 +4,7 @@ import SwiftData
 struct RootView: View {
     @Query(sort: \ColorEntry.date) private var allEntries: [ColorEntry]
 
-    @State private var selectedTab: Int = 0
+    @State private var scrollId: Int? = 0
     @State private var selectedDay: SelectedDay? = nil
 
     private struct SelectedDay: Identifiable {
@@ -32,46 +32,60 @@ struct RootView: View {
 
     private var filledCount: Int { entriesByKey.count }
 
-    private var isGallery: Bool { selectedTab >= 1 }
+    private var currentTab: Int { scrollId ?? 0 }
+    private var isGallery: Bool { currentTab >= 1 }
 
     var body: some View {
         ZStack(alignment: .top) {
-            TabView(selection: $selectedTab) {
-                TodayView(onSaved: {
-                    withAnimation(.easeInOut(duration: 0.45)) {
-                        selectedTab = 1
-                    }
-                })
-                .tag(0)
+            ScrollView(.horizontal) {
+                HStack(spacing: 0) {
+                    TodayView(onSaved: {
+                        withAnimation(.easeInOut(duration: 0.45)) {
+                            scrollId = 1
+                        }
+                    })
+                    .containerRelativeFrame([.horizontal, .vertical])
+                    .fadeOnPage()
+                    .id(0)
 
-                WeeklyBoardView(
-                    year: year,
-                    firstWeekday: firstWeekday,
-                    entriesByKey: entriesByKey,
-                    onSelectDate: handleSelect
-                )
-                .padding(.top, galleryTopInset)
-                .tag(1)
+                    WeeklyBoardView(
+                        year: year,
+                        firstWeekday: firstWeekday,
+                        entriesByKey: entriesByKey,
+                        onSelectDate: handleSelect
+                    )
+                    .padding(.top, galleryTopInset)
+                    .containerRelativeFrame([.horizontal, .vertical])
+                    .fadeOnPage()
+                    .id(1)
 
-                MonthlyBoardView(
-                    year: year,
-                    firstWeekday: firstWeekday,
-                    entriesByKey: entriesByKey,
-                    onSelectDate: handleSelect
-                )
-                .padding(.top, galleryTopInset)
-                .tag(2)
+                    MonthlyBoardView(
+                        year: year,
+                        firstWeekday: firstWeekday,
+                        entriesByKey: entriesByKey,
+                        onSelectDate: handleSelect
+                    )
+                    .padding(.top, galleryTopInset)
+                    .containerRelativeFrame([.horizontal, .vertical])
+                    .fadeOnPage()
+                    .id(2)
 
-                YearlyBoardView(
-                    year: year,
-                    firstWeekday: firstWeekday,
-                    entriesByKey: entriesByKey,
-                    onSelectDate: handleSelect
-                )
-                .padding(.top, galleryTopInset)
-                .tag(3)
+                    YearlyBoardView(
+                        year: year,
+                        firstWeekday: firstWeekday,
+                        entriesByKey: entriesByKey,
+                        onSelectDate: handleSelect
+                    )
+                    .padding(.top, galleryTopInset)
+                    .containerRelativeFrame([.horizontal, .vertical])
+                    .fadeOnPage()
+                    .id(3)
+                }
+                .scrollTargetLayout()
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
+            .scrollTargetBehavior(.paging)
+            .scrollPosition(id: $scrollId)
+            .scrollIndicators(.hidden)
 
             galleryHeader
                 .opacity(isGallery ? 1 : 0)
@@ -139,10 +153,10 @@ struct RootView: View {
     }
 
     private func modeButton(tab: Int, label: String) -> some View {
-        let isActive = selectedTab == tab
+        let isActive = currentTab == tab
         return Button {
-            withAnimation(.easeInOut(duration: 0.25)) {
-                selectedTab = tab
+            withAnimation(.easeInOut(duration: 0.35)) {
+                scrollId = tab
             }
         } label: {
             VStack(spacing: 6) {
@@ -166,11 +180,11 @@ struct RootView: View {
         HStack(spacing: 6) {
             ForEach(0..<tabCount, id: \.self) { i in
                 Capsule()
-                    .fill(i == selectedTab
+                    .fill(i == currentTab
                           ? PaletteTheme.primaryText
                           : PaletteTheme.tertiaryText.opacity(0.5))
-                    .frame(width: i == selectedTab ? 16 : 5, height: 5)
-                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: selectedTab)
+                    .frame(width: i == currentTab ? 16 : 5, height: 5)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: currentTab)
             }
         }
     }
@@ -179,6 +193,14 @@ struct RootView: View {
 
     private func handleSelect(_ date: Date) {
         selectedDay = SelectedDay(id: DayKey.make(for: date), date: date)
+    }
+}
+
+private extension View {
+    func fadeOnPage() -> some View {
+        self.scrollTransition(.interactive, axis: .horizontal) { content, phase in
+            content.opacity(1 - min(1, abs(phase.value)))
+        }
     }
 }
 
