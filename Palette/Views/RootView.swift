@@ -132,9 +132,18 @@ struct RootView: View {
             )
         }
         .onOpenURL { url in
-            guard url.scheme == "palette", url.host == "today" else { return }
+            guard url.scheme == "palette" else { return }
+            let target: Int?
+            switch url.host {
+            case "today": target = 0
+            case "week":  target = 1
+            case "month": target = 2
+            case "year":  target = 3
+            default:      target = nil
+            }
+            guard let target else { return }
             withAnimation(.easeInOut(duration: 0.35)) {
-                scrollId = 0
+                scrollId = target
             }
         }
     }
