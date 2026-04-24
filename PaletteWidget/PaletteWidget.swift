@@ -253,20 +253,21 @@ struct ThisMonthMediumView: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(monthSymbol)
-                    .font(.system(size: 10, weight: .semibold))
-                    .tracking(1.2)
-                    .foregroundStyle(WidgetPalette.secondary)
-                    .textCase(.uppercase)
-                Spacer(minLength: 0)
-            }
-            .frame(width: 70, alignment: .leading)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(monthSymbol)
+                .font(.system(size: 10, weight: .semibold))
+                .tracking(1.2)
+                .foregroundStyle(WidgetPalette.secondary)
+                .textCase(.uppercase)
 
             GeometryReader { proxy in
                 let spacing: CGFloat = 2.5
-                let tile = (proxy.size.width - spacing * 6) / 7
+                let bottomReserve: CGFloat = 4
+                let tileW = (proxy.size.width - spacing * 6) / 7
+                let heightAvail = proxy.size.height - bottomReserve
+                let tileH = (heightAvail - CGFloat(rows - 1) * spacing) / CGFloat(rows)
+                let tile = max(0, min(tileW, tileH))
+
                 VStack(spacing: spacing) {
                     ForEach(0..<rows, id: \.self) { row in
                         HStack(spacing: spacing) {
@@ -276,6 +277,7 @@ struct ThisMonthMediumView: View {
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .center)
             }
         }
         .widgetURL(URL(string: "palette://month"))
