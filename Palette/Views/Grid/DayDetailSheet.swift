@@ -54,20 +54,24 @@ struct DayDetailSheet: View {
     }
 
     private static func detailHeight(date: Date, entry: ColorEntry?) -> CGFloat {
+        if ColorStore.isFuture(date) {
+            return 250
+        }
+
         let hasEntry = entry != nil
-        let hasStatus = ColorStore.isFuture(date) || !hasEntry
+        let hasStatus = !hasEntry
         let canPick = ColorStore.canPickColor(for: date, hasEntry: hasEntry)
         let canDelete = ColorStore.canDelete(for: date) && hasEntry
         let buttonCount = (canPick ? 1 : 0) + (canDelete ? 1 : 0)
 
-        let topPad: CGFloat = 28
+        let topPad: CGFloat = 70
         let tileToDate: CGFloat = 28
         let dateText: CGFloat = 28
         let statusBlock: CGFloat = hasStatus ? 26 : 0
         let dateToActions: CGFloat = 28
         let buttonH: CGFloat = 52
         let buttonGap: CGFloat = 12
-        let bottomPad: CGFloat = 28
+        let bottomPad: CGFloat = 0
 
         let actionsH: CGFloat = buttonCount > 0
             ? CGFloat(buttonCount) * buttonH + CGFloat(max(0, buttonCount - 1)) * buttonGap
@@ -125,7 +129,7 @@ struct DayDetailSheet: View {
 
     private var detailContent: some View {
         VStack(spacing: 0) {
-            Spacer(minLength: 28)
+            Spacer(minLength: 70)
 
             currentTile
 
@@ -147,13 +151,25 @@ struct DayDetailSheet: View {
 
             actionButtons
                 .padding(.horizontal, 24)
-
-            Spacer(minLength: 28)
         }
     }
 
     @ViewBuilder
     private var currentTile: some View {
+        let canPick = ColorStore.canPickColor(for: date, hasEntry: entry != nil)
+        if canPick {
+            Button(action: handlePickTap) {
+                tileVisual
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(pickLabel)
+        } else {
+            tileVisual
+        }
+    }
+
+    @ViewBuilder
+    private var tileVisual: some View {
         if let hex = displayColorHex {
             ColorTile(color: Color(hex: hex), size: Self.tileSize)
         } else if isToday {
