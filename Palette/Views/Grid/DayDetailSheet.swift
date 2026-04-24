@@ -48,27 +48,27 @@ struct DayDetailSheet: View {
     private var needsOverrideConfirmation: Bool {
         ColorStore.requiresOverrideConfirmation(for: date, hasEntry: entry != nil)
     }
+    private var hasActions: Bool {
+        ColorStore.canPickColor(for: date, hasEntry: entry != nil)
+            || (ColorStore.canDelete(for: date) && entry != nil)
+    }
 
     private var detailHeight: CGFloat {
         Self.detailHeight(date: date, entry: entry)
     }
 
     private static func detailHeight(date: Date, entry: ColorEntry?) -> CGFloat {
-        if ColorStore.isFuture(date) {
-            return 250
-        }
-
         let hasEntry = entry != nil
-        let hasStatus = !hasEntry
+        let hasStatus = ColorStore.isFuture(date) || !hasEntry
         let canPick = ColorStore.canPickColor(for: date, hasEntry: hasEntry)
         let canDelete = ColorStore.canDelete(for: date) && hasEntry
         let buttonCount = (canPick ? 1 : 0) + (canDelete ? 1 : 0)
 
-        let topPad: CGFloat = 70
+        let topPad: CGFloat = 30
         let tileToDate: CGFloat = 28
         let dateText: CGFloat = 28
         let statusBlock: CGFloat = hasStatus ? 26 : 0
-        let dateToActions: CGFloat = 28
+        let dateToActions: CGFloat = buttonCount > 0 ? 28 : 0
         let buttonH: CGFloat = 52
         let buttonGap: CGFloat = 12
         let bottomPad: CGFloat = 0
@@ -129,7 +129,7 @@ struct DayDetailSheet: View {
 
     private var detailContent: some View {
         VStack(spacing: 0) {
-            Spacer(minLength: 70)
+            Spacer(minLength: 30)
 
             currentTile
 
@@ -147,10 +147,12 @@ struct DayDetailSheet: View {
                 }
             }
 
-            Spacer().frame(height: 28)
+            if hasActions {
+                Spacer().frame(height: 28)
 
-            actionButtons
-                .padding(.horizontal, 24)
+                actionButtons
+                    .padding(.horizontal, 24)
+            }
         }
     }
 
