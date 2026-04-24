@@ -8,18 +8,18 @@ struct RootView: View {
     @State private var selectedDay: SelectedDay? = nil
     @State private var weekScrollTick: Int = 0
     @State private var monthScrollTick: Int = 0
+    @State private var year: Int
 
     private struct SelectedDay: Identifiable {
         let id: String
         let date: Date
     }
 
-    private let year: Int
     private let firstWeekday: Int
     private let tabCount: Int = 4
 
     init() {
-        self.year = DayKey.year(of: Date())
+        _year = State(initialValue: DayKey.year(of: Date()))
         self.firstWeekday = Calendar.current.firstWeekday
     }
 
@@ -33,6 +33,13 @@ struct RootView: View {
     }
 
     private var filledCount: Int { entriesByKey.count }
+
+    private var availableYears: [Int] {
+        let current = DayKey.year(of: Date())
+        var set = Set(allEntries.map { DayKey.year(of: $0.date) })
+        set.insert(current)
+        return set.sorted(by: >)
+    }
 
     private var currentTab: Int { scrollId ?? 0 }
     private var isGallery: Bool { currentTab >= 1 }
@@ -51,36 +58,48 @@ struct RootView: View {
                         .fadeOnPage()
                         .id(0)
 
-                        WeeklyBoardView(
-                            year: year,
-                            firstWeekday: firstWeekday,
-                            entriesByKey: entriesByKey,
-                            scrollToTodayTick: weekScrollTick,
-                            onSelectDate: handleSelect
-                        )
+                        ZStack {
+                            WeeklyBoardView(
+                                year: year,
+                                firstWeekday: firstWeekday,
+                                entriesByKey: entriesByKey,
+                                scrollToTodayTick: weekScrollTick,
+                                onSelectDate: handleSelect
+                            )
+                            .id(year)
+                            .transition(.opacity)
+                        }
                         .padding(.top, galleryTopInset)
                         .frame(width: proxy.size.width, height: proxy.size.height)
                         .fadeOnPage()
                         .id(1)
 
-                        MonthlyBoardView(
-                            year: year,
-                            firstWeekday: firstWeekday,
-                            entriesByKey: entriesByKey,
-                            scrollToTodayTick: monthScrollTick,
-                            onSelectDate: handleSelect
-                        )
+                        ZStack {
+                            MonthlyBoardView(
+                                year: year,
+                                firstWeekday: firstWeekday,
+                                entriesByKey: entriesByKey,
+                                scrollToTodayTick: monthScrollTick,
+                                onSelectDate: handleSelect
+                            )
+                            .id(year)
+                            .transition(.opacity)
+                        }
                         .padding(.top, galleryTopInset)
                         .frame(width: proxy.size.width, height: proxy.size.height)
                         .fadeOnPage()
                         .id(2)
 
-                        YearlyBoardView(
-                            year: year,
-                            firstWeekday: firstWeekday,
-                            entriesByKey: entriesByKey,
-                            onSelectDate: handleSelect
-                        )
+                        ZStack {
+                            YearlyBoardView(
+                                year: year,
+                                firstWeekday: firstWeekday,
+                                entriesByKey: entriesByKey,
+                                onSelectDate: handleSelect
+                            )
+                            .id(year)
+                            .transition(.opacity)
+                        }
                         .padding(.top, galleryTopInset)
                         .frame(width: proxy.size.width, height: proxy.size.height)
                         .fadeOnPage()
@@ -118,11 +137,7 @@ struct RootView: View {
     private var galleryHeader: some View {
         VStack(spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
-                Text(verbatim: "\(year)")
-                    .font(.system(size: 30, weight: .thin, design: .serif))
-                    .tracking(1)
-                    .foregroundStyle(PaletteTheme.primaryText)
-                    .monospacedDigit()
+                yearLabel
 
                 Spacer()
 
@@ -140,6 +155,48 @@ struct RootView: View {
                 .padding(.bottom, 12)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private var yearLabel: some View {
+        if availableYears.count > 1 {
+            Menu {
+                ForEach(availableYears, id: \.self) { y in
+                    Button {
+                        changeYear(to: y)
+                    } label: {
+                        if y == year {
+                            Label("\(y)", systemImage: "checkmark")
+                        } else {
+                            Text(verbatim: "\(y)")
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(verbatim: "\(year)")
+                        .font(.system(size: 30, weight: .thin, design: .serif))
+                        .tracking(1)
+                        .foregroundStyle(PaletteTheme.primaryText)
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(PaletteTheme.tertiaryText)
+                }
+                .contentShape(Rectangle())
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+        } else {
+            Text(verbatim: "\(year)")
+                .font(.system(size: 30, weight: .thin, design: .serif))
+                .tracking(1)
+                .foregroundStyle(PaletteTheme.primaryText)
+                .monospacedDigit()
+                .contentTransition(.numericText())
+        }
     }
 
     private var countText: String {
@@ -209,6 +266,13 @@ struct RootView: View {
 
     private func handleSelect(_ date: Date) {
         selectedDay = SelectedDay(id: DayKey.make(for: date), date: date)
+    }
+
+    private func changeYear(to newYear: Int) {
+        guard newYear != year else { return }
+        withAnimation(.easeInOut(duration: 0.4)) {
+            year = newYear
+        }
     }
 }
 
