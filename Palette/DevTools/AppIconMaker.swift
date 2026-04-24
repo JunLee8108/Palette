@@ -7,16 +7,16 @@ import UIKit
 struct AppIconView: View {
     static let stripes: [Color] = [
         Color(hex: "#E8594A"),
+        Color(hex: "#F07D4C"),
         Color(hex: "#F4A74C"),
         Color(hex: "#E8DC6F"),
-        Color(hex: "#5AA874"),
-        Color(hex: "#4A8FBD"),
-        Color(hex: "#1F4A7A"),
+        Color(hex: "#D96E7C"),
         Color(hex: "#B46FAB"),
+        Color(hex: "#9B7EBD"),
     ]
 
     var body: some View {
-        VStack(spacing: 0) {
+        HStack(spacing: 0) {
             ForEach(0..<Self.stripes.count, id: \.self) { i in
                 Self.stripes[i]
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
