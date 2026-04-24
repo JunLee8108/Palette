@@ -1,5 +1,7 @@
 import Foundation
 import SwiftData
+import WidgetKit
+import PaletteShared
 
 enum ColorStore {
     static func entry(for date: Date, in context: ModelContext) -> ColorEntry? {
@@ -24,6 +26,7 @@ enum ColorStore {
             existing.paletteId = DefaultPalette.id
             existing.updatedAt = Date()
             try? context.save()
+            WidgetCenter.shared.reloadAllTimelines()
             return existing
         }
 
@@ -36,6 +39,7 @@ enum ColorStore {
         )
         context.insert(entry)
         try? context.save()
+        WidgetCenter.shared.reloadAllTimelines()
         return entry
     }
 
@@ -51,6 +55,7 @@ enum ColorStore {
         guard let entry = entry(for: date, in: context) else { return }
         context.delete(entry)
         try? context.save()
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     static func deleteToday(in context: ModelContext) {

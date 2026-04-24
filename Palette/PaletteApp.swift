@@ -1,21 +1,14 @@
 import SwiftUI
 import SwiftData
+import PaletteShared
 
 @main
 struct PaletteApp: App {
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            ColorEntry.self,
-        ])
-        let modelConfiguration = ModelConfiguration(
-            schema: schema,
-            isStoredInMemoryOnly: false
-        )
-
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            return try SharedModelContainer.make()
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+            fatalError("Could not create shared ModelContainer: \(error)")
         }
     }()
 

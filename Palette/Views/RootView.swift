@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import PaletteShared
 
 struct RootView: View {
     @Query(sort: \ColorEntry.date) private var allEntries: [ColorEntry]
@@ -129,6 +130,12 @@ struct RootView: View {
                 entry: entriesByKey[day.id],
                 onChanged: { selectedDay = nil }
             )
+        }
+        .onOpenURL { url in
+            guard url.scheme == "palette", url.host == "today" else { return }
+            withAnimation(.easeInOut(duration: 0.35)) {
+                scrollId = 0
+            }
         }
     }
 

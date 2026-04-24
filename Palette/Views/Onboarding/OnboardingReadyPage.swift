@@ -1,4 +1,5 @@
 import SwiftUI
+import PaletteShared
 
 struct OnboardingReadyPage: View {
     var username: String = ""

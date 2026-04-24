@@ -1,4 +1,5 @@
 import SwiftUI
+import PaletteShared
 
 struct GridCell: View {
     let size: CGFloat

@@ -1,4 +1,5 @@
 import SwiftUI
+import PaletteShared
 
 struct ColorTile: View {
     let color: Color

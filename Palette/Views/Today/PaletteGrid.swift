@@ -1,4 +1,5 @@
 import SwiftUI
+import PaletteShared
 
 struct PaletteGrid: View {
     let swatches: [PaletteSwatch]

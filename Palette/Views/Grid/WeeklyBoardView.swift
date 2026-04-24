@@ -1,4 +1,5 @@
 import SwiftUI
+import PaletteShared
 
 struct WeeklyBoardView: View {
     let year: Int
