@@ -71,7 +71,7 @@ struct DayDetailSheet: View {
         let dateToActions: CGFloat = buttonCount > 0 ? 28 : 0
         let buttonH: CGFloat = 52
         let buttonGap: CGFloat = 12
-        let bottomPad: CGFloat = 0
+        let bottomPad: CGFloat = 20
 
         let actionsH: CGFloat = buttonCount > 0
             ? CGFloat(buttonCount) * buttonH + CGFloat(max(0, buttonCount - 1)) * buttonGap
