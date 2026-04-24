@@ -54,15 +54,24 @@ struct ExportView: View {
 
     // MARK: Preview
 
+    private static let canvasSize: CGFloat = 1200
+
     private var preview: some View {
-        ExportCanvas(options: options, data: data)
-            .aspectRatio(1, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+        GeometryReader { proxy in
+            let scale = proxy.size.width / Self.canvasSize
+            ExportCanvas(options: options, data: data)
+                .frame(width: Self.canvasSize, height: Self.canvasSize)
+                .scaleEffect(scale, anchor: .topLeading)
+                .frame(width: proxy.size.width, height: proxy.size.width)
+                .clipped()
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
     }
 
     // MARK: Options
@@ -183,7 +192,11 @@ struct ExportView: View {
     private func renderAndShare() {
         isRendering = true
         let canvas = ExportCanvas(options: options, data: data)
-        let url = ExportRenderer.writePNG(canvas, size: CGSize(width: 1200, height: 1200), scale: 2)
+        let url = ExportRenderer.writePNG(
+            canvas,
+            size: CGSize(width: Self.canvasSize, height: Self.canvasSize),
+            scale: 2
+        )
         isRendering = false
         shareURL = url
     }
