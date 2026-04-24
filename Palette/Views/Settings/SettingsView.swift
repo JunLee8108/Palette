@@ -12,6 +12,10 @@ struct SettingsView: View {
     @State private var showTimePicker: Bool = false
     @State private var draftTime: Date = Date()
 
+    #if DEBUG
+    @State private var iconPNGURL: URL? = nil
+    #endif
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -33,6 +37,12 @@ struct SettingsView: View {
                                 value: appVersion
                             )
                         }
+
+                        #if DEBUG
+                        section(title: "Dev") {
+                            devIconExportRow
+                        }
+                        #endif
                     }
                     .padding(.horizontal, 24)
                     .padding(.top, 8)
@@ -187,6 +197,61 @@ struct SettingsView: View {
                 .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
         )
     }
+
+    #if DEBUG
+    private var devIconExportRow: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            AppIconView()
+                .frame(width: 88, height: 88)
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
+                )
+
+            Button {
+                iconPNGURL = AppIconExporter.writePNG()
+            } label: {
+                Text("Generate AppIcon PNG (1024)")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(PaletteTheme.primaryText)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(PaletteTheme.surface)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+
+            if let url = iconPNGURL {
+                ShareLink(item: url) {
+                    HStack {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Share \(url.lastPathComponent)")
+                            .font(.system(size: 14, weight: .medium))
+                        Spacer()
+                    }
+                    .foregroundStyle(PaletteTheme.primaryText)
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(PaletteTheme.surface)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
+                    )
+                }
+            }
+        }
+    }
+    #endif
 
     // MARK: Section helper
 
