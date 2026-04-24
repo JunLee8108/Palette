@@ -9,6 +9,13 @@ struct ExportView: View {
     @State private var options: ExportOptions
     @State private var shareURL: URL? = nil
     @State private var isRendering: Bool = false
+    @State private var saveStatus: SaveStatus = .idle
+    @State private var showSettingsAlert: Bool = false
+    @State private var saveErrorMessage: String? = nil
+
+    private enum SaveStatus: Equatable {
+        case idle, saving, saved, failed
+    }
 
     init(initialScope: ExportScope = .month) {
         var opts = ExportOptions()
@@ -30,7 +37,11 @@ struct ExportView: View {
                     preview
                         .padding(.horizontal, 20)
                         .padding(.top, 16)
-                        .padding(.bottom, 20)
+                        .padding(.bottom, 12)
+
+                    dateNavigator
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 12)
 
                     ScrollView {
                         optionsPanel
@@ -55,6 +66,30 @@ struct ExportView: View {
             .toolbarBackground(.visible, for: .navigationBar)
         }
         .presentationBackground(PaletteTheme.background)
+        .alert(
+            L10n.t("Photos access needed", "사진 접근 권한 필요"),
+            isPresented: $showSettingsAlert
+        ) {
+            Button(L10n.t("Cancel", "취소"), role: .cancel) {}
+            Button(L10n.t("Open Settings", "설정 열기")) { openAppSettings() }
+        } message: {
+            Text(L10n.t(
+                "Enable Photos access in Settings to save your export.",
+                "설정에서 사진 접근을 허용하면 저장할 수 있어요."
+            ))
+        }
+        .alert(
+            L10n.t("Save failed", "저장 실패"),
+            isPresented: Binding(
+                get: { saveErrorMessage != nil },
+                set: { if !$0 { saveErrorMessage = nil } }
+            )
+        ) {
+            Button(L10n.t("OK", "확인"), role: .cancel) {}
+        } message: {
+            Text(saveErrorMessage ?? "")
+        }
+        .sensoryFeedback(.success, trigger: saveStatus == .saved)
     }
 
     // MARK: Preview
@@ -79,6 +114,41 @@ struct ExportView: View {
                     .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
             )
             .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+    }
+
+    // MARK: Date navigator
+
+    private var dateNavigator: some View {
+        HStack(spacing: 8) {
+            Button(action: goToPreviousPeriod) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(PaletteTheme.secondaryText)
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Text(ExportText.header(for: options))
+                .font(.system(size: 12, weight: .semibold))
+                .tracking(1.3)
+                .foregroundStyle(PaletteTheme.primaryText)
+                .monospacedDigit()
+                .frame(maxWidth: .infinity)
+                .contentTransition(.opacity)
+
+            Button(action: goToNextPeriod) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(canGoNext
+                                     ? PaletteTheme.secondaryText
+                                     : PaletteTheme.tertiaryText.opacity(0.35))
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!canGoNext)
+        }
     }
 
     // MARK: Options
@@ -148,16 +218,23 @@ struct ExportView: View {
             Spacer()
             HStack(spacing: 12) {
                 if let shareURL {
+                    Button(action: { saveToPhotos(shareURL) }) {
+                        barLabel(saveButtonText, primary: false)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(saveStatus == .saving)
+
                     ShareLink(item: shareURL) {
                         barLabel(L10n.t("Share", "공유"), primary: true)
                     }
                 } else {
-                    Button(action: renderAndShare) {
+                    Button(action: renderPNG) {
                         barLabel(
                             isRendering ? L10n.t("Rendering…", "생성 중…") : L10n.t("Render PNG", "PNG 만들기"),
                             primary: true
                         )
                     }
+                    .buttonStyle(.plain)
                     .disabled(isRendering)
                 }
             }
@@ -173,15 +250,25 @@ struct ExportView: View {
                 .ignoresSafeArea()
             )
         }
-        .onChange(of: options.style) { _, _ in shareURL = nil }
-        .onChange(of: options.scope) { _, _ in shareURL = nil }
-        .onChange(of: options.stripesOrientation) { _, _ in shareURL = nil }
-        .onChange(of: options.skipEmpty) { _, _ in shareURL = nil }
-        .onChange(of: options.showHeader) { _, _ in shareURL = nil }
-        .onChange(of: options.showWeekdayLabels) { _, _ in shareURL = nil }
-        .onChange(of: options.showDayCount) { _, _ in shareURL = nil }
-        .onChange(of: options.background) { _, _ in shareURL = nil }
-        .onChange(of: options.showWatermark) { _, _ in shareURL = nil }
+        .onChange(of: options.style) { _, _ in resetRender() }
+        .onChange(of: options.scope) { _, _ in resetRender() }
+        .onChange(of: options.date) { _, _ in resetRender() }
+        .onChange(of: options.stripesOrientation) { _, _ in resetRender() }
+        .onChange(of: options.skipEmpty) { _, _ in resetRender() }
+        .onChange(of: options.showHeader) { _, _ in resetRender() }
+        .onChange(of: options.showWeekdayLabels) { _, _ in resetRender() }
+        .onChange(of: options.showDayCount) { _, _ in resetRender() }
+        .onChange(of: options.background) { _, _ in resetRender() }
+        .onChange(of: options.showWatermark) { _, _ in resetRender() }
+    }
+
+    private var saveButtonText: String {
+        switch saveStatus {
+        case .idle: return L10n.t("Save", "저장")
+        case .saving: return L10n.t("Saving…", "저장 중…")
+        case .saved: return L10n.t("Saved", "저장됨")
+        case .failed: return L10n.t("Save", "저장")
+        }
     }
 
     private func barLabel(_ text: String, primary: Bool) -> some View {
@@ -204,8 +291,13 @@ struct ExportView: View {
 
     // MARK: Actions
 
+    private func resetRender() {
+        shareURL = nil
+        saveStatus = .idle
+    }
+
     @MainActor
-    private func renderAndShare() {
+    private func renderPNG() {
         isRendering = true
         let canvas = ExportCanvas(options: options, data: data)
         let url = ExportRenderer.writePNG(
@@ -215,6 +307,90 @@ struct ExportView: View {
         )
         isRendering = false
         shareURL = url
+    }
+
+    private func saveToPhotos(_ url: URL) {
+        saveStatus = .saving
+        Task {
+            let result = await PhotoLibrarySaver.saveImage(at: url)
+            await MainActor.run {
+                switch result {
+                case .saved:
+                    saveStatus = .saved
+                    Task {
+                        try? await Task.sleep(nanoseconds: 1_800_000_000)
+                        if saveStatus == .saved { saveStatus = .idle }
+                    }
+                case .denied:
+                    saveStatus = .idle
+                    showSettingsAlert = true
+                case .failed(let error):
+                    saveStatus = .failed
+                    saveErrorMessage = error.localizedDescription
+                    Task {
+                        try? await Task.sleep(nanoseconds: 1_200_000_000)
+                        if saveStatus == .failed { saveStatus = .idle }
+                    }
+                }
+            }
+        }
+    }
+
+    private func openAppSettings() {
+        #if canImport(UIKit)
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
+        #endif
+    }
+
+    // MARK: Date navigation
+
+    private func goToPreviousPeriod() {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            options.date = shifted(options.date, forward: false)
+        }
+    }
+
+    private func goToNextPeriod() {
+        guard canGoNext else { return }
+        withAnimation(.easeInOut(duration: 0.25)) {
+            options.date = shifted(options.date, forward: true)
+        }
+    }
+
+    private func shifted(_ date: Date, forward: Bool) -> Date {
+        let cal = Calendar.current
+        let comps: DateComponents = options.scope == .week
+            ? DateComponents(day: forward ? 7 : -7)
+            : DateComponents(month: forward ? 1 : -1)
+        return cal.date(byAdding: comps, to: date) ?? date
+    }
+
+    private var canGoNext: Bool {
+        !isCurrentPeriod(options.date)
+    }
+
+    private func isCurrentPeriod(_ date: Date) -> Bool {
+        let cal = Calendar.current
+        let today = Date()
+        switch options.scope {
+        case .week:
+            return weekStart(of: date) == weekStart(of: today)
+        case .month:
+            return cal.component(.year, from: date) == cal.component(.year, from: today)
+                && cal.component(.month, from: date) == cal.component(.month, from: today)
+        case .year:
+            return cal.component(.year, from: date) == cal.component(.year, from: today)
+        }
+    }
+
+    private func weekStart(of date: Date) -> Date {
+        let cal = Calendar.current
+        let day = cal.startOfDay(for: date)
+        let weekday = cal.component(.weekday, from: day)
+        let offset = (weekday - options.firstWeekday + 7) % 7
+        return cal.date(byAdding: .day, value: -offset, to: day) ?? day
     }
 
     // MARK: Row helpers
