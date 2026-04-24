@@ -37,7 +37,9 @@ struct RootView: View {
     private var availableYears: [Int] {
         let current = DayKey.year(of: Date())
         var set = Set(allEntries.map { DayKey.year(of: $0.date) })
-        set.insert(current)
+        for offset in 0...4 {
+            set.insert(current - offset)
+        }
         return set.sorted(by: >)
     }
 
@@ -157,6 +159,8 @@ struct RootView: View {
         .frame(maxWidth: .infinity)
     }
 
+    private static let plainYearFormat: IntegerFormatStyle<Int> = .number.grouping(.never)
+
     private var yearLabel: some View {
         Menu {
             ForEach(availableYears, id: \.self) { y in
@@ -164,20 +168,24 @@ struct RootView: View {
                     changeYear(to: y)
                 } label: {
                     if y == year {
-                        Label("\(y)", systemImage: "checkmark")
+                        Label {
+                            Text(y, format: Self.plainYearFormat)
+                        } icon: {
+                            Image(systemName: "checkmark")
+                        }
                     } else {
-                        Text(verbatim: "\(y)")
+                        Text(y, format: Self.plainYearFormat)
                     }
                 }
             }
         } label: {
             HStack(spacing: 6) {
-                Text(verbatim: "\(year)")
+                Text(year, format: Self.plainYearFormat)
                     .font(.system(size: 30, weight: .thin, design: .serif))
                     .tracking(1)
                     .foregroundStyle(PaletteTheme.primaryText)
                     .monospacedDigit()
-                    .contentTransition(.numericText())
+                    .contentTransition(.numericText(value: Double(year)))
 
                 Image(systemName: "chevron.down")
                     .font(.system(size: 11, weight: .semibold))
