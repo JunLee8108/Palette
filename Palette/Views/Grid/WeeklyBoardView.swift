@@ -17,8 +17,15 @@ struct WeeklyBoardView: View {
         WeekSlot.all(in: year, firstWeekday: firstWeekday)
     }
 
-    private var currentWeekId: String? {
-        weeks.first(where: { $0.contains(Date()) })?.id
+    private var anchorWeekId: String? {
+        let cal = Calendar.current
+        let today = cal.dateComponents([.month, .day], from: Date())
+        var target = DateComponents()
+        target.year = year
+        target.month = today.month
+        target.day = today.day
+        guard let anchorDate = cal.date(from: target) else { return nil }
+        return weeks.first(where: { $0.contains(anchorDate) })?.id
     }
 
     var body: some View {
@@ -39,7 +46,7 @@ struct WeeklyBoardView: View {
                     .padding(.bottom, 40)
                 }
                 .onAppear {
-                    guard !didAutoScroll, let id = currentWeekId else { return }
+                    guard !didAutoScroll, let id = anchorWeekId else { return }
                     didAutoScroll = true
                     DispatchQueue.main.async {
                         withAnimation(.none) {
@@ -48,7 +55,7 @@ struct WeeklyBoardView: View {
                     }
                 }
                 .onChange(of: scrollToTodayTick) { _, _ in
-                    guard let id = currentWeekId else { return }
+                    guard let id = anchorWeekId else { return }
                     withAnimation(.easeInOut(duration: 0.3)) {
                         scroller.scrollTo(id, anchor: .top)
                     }
