@@ -23,17 +23,22 @@ struct ExportView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
+            ZStack(alignment: .bottom) {
                 PaletteTheme.background.ignoresSafeArea()
 
-                ScrollView {
-                    VStack(spacing: 28) {
-                        preview
+                VStack(spacing: 0) {
+                    preview
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16)
+                        .padding(.bottom, 20)
+
+                    ScrollView {
                         optionsPanel
+                            .padding(.horizontal, 20)
+                            .padding(.top, 4)
+                            .padding(.bottom, 120)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 20)
-                    .padding(.bottom, 80)
+                    .scrollIndicators(.hidden)
                 }
 
                 bottomBar
@@ -80,18 +85,27 @@ struct ExportView: View {
 
     private var optionsPanel: some View {
         VStack(alignment: .leading, spacing: 20) {
-            pickerRow(title: L10n.t("Style", "스타일")) {
-                Picker("", selection: $options.style) {
-                    ForEach(ExportStyle.allCases) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.segmented)
-            }
-
             pickerRow(title: L10n.t("Scope", "범위")) {
                 Picker("", selection: $options.scope) {
-                    ForEach(ExportScope.allCases) { Text($0.label).tag($0) }
+                    ForEach(ExportScope.allCases.filter { $0 != .year }) {
+                        Text($0.label).tag($0)
+                    }
                 }
                 .pickerStyle(.segmented)
+                .onChange(of: options.scope) { _, newScope in
+                    if newScope != .week, options.style == .stripes {
+                        options.style = .grid
+                    }
+                }
+            }
+
+            if options.scope == .week {
+                pickerRow(title: L10n.t("Style", "스타일")) {
+                    Picker("", selection: $options.style) {
+                        ForEach(ExportStyle.allCases) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                }
             }
 
             if options.style == .grid {
