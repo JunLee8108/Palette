@@ -157,45 +157,32 @@ struct RootView: View {
         .frame(maxWidth: .infinity)
     }
 
-    @ViewBuilder
     private var yearLabel: some View {
-        if availableYears.count > 1 {
-            Menu {
-                ForEach(availableYears, id: \.self) { y in
-                    Button {
-                        changeYear(to: y)
-                    } label: {
-                        if y == year {
-                            Label("\(y)", systemImage: "checkmark")
-                        } else {
-                            Text(verbatim: "\(y)")
-                        }
+        Menu {
+            ForEach(availableYears, id: \.self) { y in
+                Button {
+                    changeYear(to: y)
+                } label: {
+                    if y == year {
+                        Label("\(y)", systemImage: "checkmark")
+                    } else {
+                        Text(verbatim: "\(y)")
                     }
                 }
-            } label: {
-                HStack(spacing: 6) {
-                    Text(verbatim: "\(year)")
-                        .font(.system(size: 30, weight: .thin, design: .serif))
-                        .tracking(1)
-                        .foregroundStyle(PaletteTheme.primaryText)
-                        .monospacedDigit()
-                        .contentTransition(.numericText())
-
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(PaletteTheme.tertiaryText)
-                }
-                .contentShape(Rectangle())
             }
-            .menuStyle(.button)
-            .buttonStyle(.plain)
-        } else {
-            Text(verbatim: "\(year)")
-                .font(.system(size: 30, weight: .thin, design: .serif))
-                .tracking(1)
-                .foregroundStyle(PaletteTheme.primaryText)
-                .monospacedDigit()
-                .contentTransition(.numericText())
+        } label: {
+            HStack(spacing: 6) {
+                Text(verbatim: "\(year)")
+                    .font(.system(size: 30, weight: .thin, design: .serif))
+                    .tracking(1)
+                    .foregroundStyle(PaletteTheme.primaryText)
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(PaletteTheme.tertiaryText)
+            }
         }
     }
 
