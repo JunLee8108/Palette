@@ -47,8 +47,9 @@ struct TodayView: View {
     }
 
     private var previewColor: Color? {
-        if let hex = previewColorHex { return Color(hex: hex) }
+        if animatingFill, let hex = previewColorHex { return Color(hex: hex) }
         if let entry = todayEntry { return Color(hex: entry.colorHex) }
+        if let hex = previewColorHex { return Color(hex: hex) }
         return nil
     }
 
@@ -181,6 +182,8 @@ struct TodayView: View {
             animatingFill = false
             try? await Task.sleep(nanoseconds: 600_000_000)
             onSaved()
+            previewColorHex = nil
+            selectedSwatchId = nil
         }
     }
 }
