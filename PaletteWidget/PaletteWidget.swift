@@ -269,8 +269,15 @@ struct ThisMonthMediumView: View {
 
             GeometryReader { proxy in
                 let spacing: CGFloat = 2.5
-                let tile = (proxy.size.width - spacing * 6) / 7
-                VStack(spacing: 3) {
+                let headerHeight: CGFloat = 10
+                let headerGap: CGFloat = 3
+                let bottomReserve: CGFloat = 6
+                let tileW = (proxy.size.width - spacing * 6) / 7
+                let heightForGrid = proxy.size.height - headerHeight - headerGap - bottomReserve
+                let tileH = (heightForGrid - CGFloat(rows - 1) * spacing) / CGFloat(rows)
+                let tile = max(0, min(tileW, tileH))
+
+                VStack(alignment: .leading, spacing: headerGap) {
                     HStack(spacing: spacing) {
                         ForEach(0..<7, id: \.self) { i in
                             Text(weekdaySymbols[i])
@@ -292,7 +299,6 @@ struct ThisMonthMediumView: View {
                 }
             }
         }
-        .padding(.bottom, 8)
         .widgetURL(URL(string: "palette://month"))
     }
 
