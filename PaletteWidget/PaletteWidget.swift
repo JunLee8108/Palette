@@ -7,9 +7,6 @@ struct PaletteWidgetBundle: WidgetBundle {
     var body: some Widget {
         ThisWeekWidget()
         ThisMonthWidget()
-        ThisYearWidget()
-        TodayCircularWidget()
-        RecentDaysRectWidget()
     }
 }
 
@@ -30,21 +27,25 @@ struct DayTile: Identifiable {
     let isToday: Bool
 }
 
-func recentDayTiles(count: Int, reference: Date = Date()) -> [DayTile] {
+func currentWeekTiles(firstWeekday: Int = Calendar.current.firstWeekday, reference: Date = Date()) -> [DayTile] {
     let cal = Calendar.current
     let today = cal.startOfDay(for: reference)
-    let dates: [Date] = (0..<count).map { offset in
-        cal.date(byAdding: .day, value: -(count - 1 - offset), to: today) ?? today
+    let todayWeekday = cal.component(.weekday, from: today)
+    let offsetFromWeekStart = (todayWeekday - firstWeekday + 7) % 7
+    let weekStart = cal.date(byAdding: .day, value: -offsetFromWeekStart, to: today) ?? today
+
+    let dates: [Date] = (0..<7).map { offset in
+        cal.date(byAdding: .day, value: offset, to: weekStart) ?? weekStart
     }
     guard let first = dates.first, let last = dates.last else { return [] }
     let colors = WidgetDataReader.fetchColors(in: first...last)
-    return dates.enumerated().map { idx, date in
+    return dates.map { date in
         let key = DayKey.make(for: date)
         return DayTile(
             id: key,
             date: date,
             colorHex: colors[key],
-            isToday: idx == count - 1
+            isToday: cal.isDate(date, inSameDayAs: today)
         )
     }
 }
@@ -70,25 +71,30 @@ struct ThisWeekTimelineProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (ThisWeekEntry) -> Void) {
-        completion(ThisWeekEntry(date: Date(), days: recentDayTiles(count: 7)))
+        completion(ThisWeekEntry(date: Date(), days: currentWeekTiles()))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<ThisWeekEntry>) -> Void) {
-        let entry = ThisWeekEntry(date: Date(), days: recentDayTiles(count: 7))
+        let entry = ThisWeekEntry(date: Date(), days: currentWeekTiles())
         completion(Timeline(entries: [entry], policy: .after(nextMidnight(after: Date()))))
     }
 
     private static func placeholderDays() -> [DayTile] {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
+        let todayWeekday = cal.component(.weekday, from: today)
+        let offsetFromWeekStart = (todayWeekday - cal.firstWeekday + 7) % 7
+        let weekStart = cal.date(byAdding: .day, value: -offsetFromWeekStart, to: today) ?? today
+
         return (0..<7).map { offset in
-            let date = cal.date(byAdding: .day, value: -(6 - offset), to: today) ?? today
-            let hex: String? = offset == 6 ? nil : DefaultPalette.swatches[offset * 3 % DefaultPalette.swatches.count].hex
+            let date = cal.date(byAdding: .day, value: offset, to: weekStart) ?? weekStart
+            let isPastOrToday = offset <= offsetFromWeekStart
+            let hex: String? = isPastOrToday ? DefaultPalette.swatches[offset * 3 % DefaultPalette.swatches.count].hex : nil
             return DayTile(
                 id: "placeholder-\(offset)",
                 date: date,
                 colorHex: hex,
-                isToday: offset == 6
+                isToday: offset == offsetFromWeekStart
             )
         }
     }
@@ -103,7 +109,7 @@ struct ThisWeekWidget: Widget {
                 .containerBackground(WidgetPalette.background, for: .widget)
         }
         .configurationDisplayName("This Week")
-        .description("Your last 7 days of color.")
+        .description("Your current week of color.")
         .supportedFamilies([.systemSmall])
     }
 }
@@ -126,7 +132,7 @@ struct ThisWeekSmallView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .widgetURL(URL(string: "palette://today"))
+        .widgetURL(URL(string: "palette://week"))
     }
 }
 
@@ -170,7 +176,6 @@ struct ThisMonthEntry: TimelineEntry {
     let month: Int
     let firstWeekday: Int
     let colorsByKey: [String: String]
-    let filledCount: Int
     let totalDays: Int
 }
 
@@ -204,7 +209,6 @@ struct ThisMonthTimelineProvider: TimelineProvider {
             month: month,
             firstWeekday: cal.firstWeekday,
             colorsByKey: colors,
-            filledCount: colors.count,
             totalDays: daysInMonth
         )
     }
@@ -259,10 +263,6 @@ struct ThisMonthMediumView: View {
                 Text(monthSymbol)
                     .font(.system(size: 18, weight: .semibold, design: .serif))
                     .foregroundStyle(WidgetPalette.primary)
-                Text("\(entry.filledCount) / \(entry.totalDays)")
-                    .font(.system(size: 11, weight: .medium))
-                    .monospacedDigit()
-                    .foregroundStyle(WidgetPalette.secondary)
                 Spacer(minLength: 0)
             }
             .frame(width: 70, alignment: .leading)
@@ -292,6 +292,7 @@ struct ThisMonthMediumView: View {
                 }
             }
         }
+        .padding(.bottom, 8)
         .widgetURL(URL(string: "palette://month"))
     }
 
@@ -324,290 +325,5 @@ struct ThisMonthMediumView: View {
             }
             .frame(width: size, height: size)
         }
-    }
-}
-
-// MARK: - This Year (systemLarge)
-
-struct ThisYearEntry: TimelineEntry {
-    let date: Date
-    let year: Int
-    let firstWeekday: Int
-    let colorsByKey: [String: String]
-    let filledCount: Int
-    let totalDays: Int
-}
-
-struct ThisYearTimelineProvider: TimelineProvider {
-    func placeholder(in context: Context) -> ThisYearEntry { snapshot() }
-
-    func getSnapshot(in context: Context, completion: @escaping (ThisYearEntry) -> Void) {
-        completion(snapshot())
-    }
-
-    func getTimeline(in context: Context, completion: @escaping (Timeline<ThisYearEntry>) -> Void) {
-        completion(Timeline(entries: [snapshot()], policy: .after(nextMidnight(after: Date()))))
-    }
-
-    private func snapshot() -> ThisYearEntry {
-        let now = Date()
-        let year = DayKey.year(of: now)
-        let colors = WidgetDataReader.fetchColors(year: year)
-        return ThisYearEntry(
-            date: now,
-            year: year,
-            firstWeekday: Calendar.current.firstWeekday,
-            colorsByKey: colors,
-            filledCount: colors.count,
-            totalDays: DayKey.daysInYear(year)
-        )
-    }
-}
-
-struct ThisYearWidget: Widget {
-    let kind: String = "ThisYearWidget"
-
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: ThisYearTimelineProvider()) { entry in
-            ThisYearLargeView(entry: entry)
-                .containerBackground(WidgetPalette.background, for: .widget)
-        }
-        .configurationDisplayName("This Year")
-        .description("Every day of the year at a glance.")
-        .supportedFamilies([.systemLarge])
-    }
-}
-
-struct ThisYearLargeView: View {
-    let entry: ThisYearEntry
-
-    private var jan1Column: Int {
-        let jan1 = DayKey.january1(of: entry.year)
-        let weekday = Calendar.current.component(.weekday, from: jan1)
-        return (weekday - entry.firstWeekday + 7) % 7
-    }
-
-    private var totalRows: Int {
-        Int(ceil(Double(jan1Column + entry.totalDays) / 7.0))
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(String(entry.year))
-                    .font(.system(size: 22, weight: .thin, design: .serif))
-                    .tracking(1)
-                    .foregroundStyle(WidgetPalette.primary)
-                    .monospacedDigit()
-                Spacer()
-                Text("\(entry.filledCount) / \(entry.totalDays)")
-                    .font(.system(size: 11, weight: .medium))
-                    .monospacedDigit()
-                    .foregroundStyle(WidgetPalette.secondary)
-            }
-
-            GeometryReader { proxy in
-                let spacing: CGFloat = 1.5
-                let cell = (proxy.size.height - spacing * 6) / 7
-                HStack(spacing: spacing) {
-                    ForEach(0..<totalRows, id: \.self) { row in
-                        VStack(spacing: spacing) {
-                            ForEach(0..<7, id: \.self) { col in
-                                yearCell(row: row, col: col, size: cell)
-                            }
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        .widgetURL(URL(string: "palette://year"))
-    }
-
-    @ViewBuilder
-    private func yearCell(row: Int, col: Int, size: CGFloat) -> some View {
-        let offset = row * 7 + col - jan1Column
-        if offset < 0 || offset >= entry.totalDays {
-            Color.clear.frame(width: size, height: size)
-        } else {
-            let date = Calendar.current.date(
-                byAdding: .day,
-                value: offset,
-                to: DayKey.january1(of: entry.year)
-            ) ?? Date()
-            let key = DayKey.make(for: date)
-            let hex = entry.colorsByKey[key]
-            let isToday = DayKey.isToday(date)
-            let radius = max(1.5, size * 0.25)
-            Group {
-                if let hex {
-                    RoundedRectangle(cornerRadius: radius)
-                        .fill(Color(hex: hex))
-                } else if isToday {
-                    RoundedRectangle(cornerRadius: radius)
-                        .strokeBorder(WidgetPalette.secondary, lineWidth: 0.9)
-                } else {
-                    RoundedRectangle(cornerRadius: radius)
-                        .fill(WidgetPalette.emptyFill)
-                }
-            }
-            .frame(width: size, height: size)
-        }
-    }
-}
-
-// MARK: - Today Circular (accessoryCircular)
-
-struct TodayCircularEntry: TimelineEntry {
-    let date: Date
-    let colorHex: String?
-}
-
-struct TodayCircularTimelineProvider: TimelineProvider {
-    func placeholder(in context: Context) -> TodayCircularEntry {
-        TodayCircularEntry(date: Date(), colorHex: DefaultPalette.swatches.first?.hex)
-    }
-
-    func getSnapshot(in context: Context, completion: @escaping (TodayCircularEntry) -> Void) {
-        completion(snapshot())
-    }
-
-    func getTimeline(in context: Context, completion: @escaping (Timeline<TodayCircularEntry>) -> Void) {
-        completion(Timeline(entries: [snapshot()], policy: .after(nextMidnight(after: Date()))))
-    }
-
-    private func snapshot() -> TodayCircularEntry {
-        TodayCircularEntry(date: Date(), colorHex: WidgetDataReader.todayColor())
-    }
-}
-
-struct TodayCircularWidget: Widget {
-    let kind: String = "TodayCircularWidget"
-
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: TodayCircularTimelineProvider()) { entry in
-            TodayCircularView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
-        }
-        .configurationDisplayName("Today")
-        .description("A tap to pick today's color.")
-        .supportedFamilies([.accessoryCircular])
-    }
-}
-
-struct TodayCircularView: View {
-    let entry: TodayCircularEntry
-
-    var body: some View {
-        ZStack {
-            AccessoryWidgetBackground()
-            if let hex = entry.colorHex {
-                Circle()
-                    .fill(Color(hex: hex))
-                    .padding(4)
-                    .widgetAccentable()
-            } else {
-                Circle()
-                    .strokeBorder(
-                        Color.primary,
-                        style: StrokeStyle(lineWidth: 1.8, dash: [3, 2])
-                    )
-                    .padding(5)
-                    .widgetAccentable()
-            }
-        }
-        .widgetURL(URL(string: "palette://today"))
-    }
-}
-
-// MARK: - Recent Days Rectangular (accessoryRectangular)
-
-struct RecentDaysRectEntry: TimelineEntry {
-    let date: Date
-    let days: [DayTile]
-}
-
-struct RecentDaysRectTimelineProvider: TimelineProvider {
-    func placeholder(in context: Context) -> RecentDaysRectEntry {
-        RecentDaysRectEntry(date: Date(), days: recentDayTiles(count: 5))
-    }
-
-    func getSnapshot(in context: Context, completion: @escaping (RecentDaysRectEntry) -> Void) {
-        completion(RecentDaysRectEntry(date: Date(), days: recentDayTiles(count: 5)))
-    }
-
-    func getTimeline(in context: Context, completion: @escaping (Timeline<RecentDaysRectEntry>) -> Void) {
-        let entry = RecentDaysRectEntry(date: Date(), days: recentDayTiles(count: 5))
-        completion(Timeline(entries: [entry], policy: .after(nextMidnight(after: Date()))))
-    }
-}
-
-struct RecentDaysRectWidget: Widget {
-    let kind: String = "RecentDaysRectWidget"
-
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: RecentDaysRectTimelineProvider()) { entry in
-            RecentDaysRectView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
-        }
-        .configurationDisplayName("Recent Days")
-        .description("Your last 5 days of color.")
-        .supportedFamilies([.accessoryRectangular])
-    }
-}
-
-struct RecentDaysRectView: View {
-    let entry: RecentDaysRectEntry
-
-    private static let dayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "d"
-        return f
-    }()
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text("PALETTE")
-                .font(.system(size: 9, weight: .semibold))
-                .tracking(1.2)
-                .widgetAccentable()
-
-            HStack(spacing: 3) {
-                ForEach(entry.days) { day in
-                    tile(for: day)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .widgetURL(URL(string: "palette://today"))
-    }
-
-    @ViewBuilder
-    private func tile(for day: DayTile) -> some View {
-        GeometryReader { proxy in
-            let side = min(proxy.size.width, proxy.size.height)
-            let radius = side * 0.22
-            ZStack {
-                if let hex = day.colorHex {
-                    RoundedRectangle(cornerRadius: radius)
-                        .fill(Color(hex: hex))
-                        .widgetAccentable()
-                } else if day.isToday {
-                    RoundedRectangle(cornerRadius: radius)
-                        .strokeBorder(
-                            Color.primary,
-                            style: StrokeStyle(lineWidth: 1.2, dash: [2, 1.5])
-                        )
-                        .widgetAccentable()
-                } else {
-                    RoundedRectangle(cornerRadius: radius)
-                        .strokeBorder(Color.primary.opacity(0.4), lineWidth: 0.8)
-                }
-            }
-            .frame(width: side, height: side)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .aspectRatio(1, contentMode: .fit)
     }
 }

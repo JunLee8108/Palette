@@ -26,15 +26,4 @@ public enum WidgetDataReader {
             return [:]
         }
     }
-
-    public static func fetchColors(year: Int) -> [String: String] {
-        let start = DayKey.january1(of: year)
-        let end = DayKey.december31(of: year)
-        return fetchColors(in: start...end)
-    }
-
-    public static func todayColor(on date: Date = Date()) -> String? {
-        let day = Calendar.current.startOfDay(for: date)
-        return fetchColors(in: day...day)[DayKey.make(for: day)]
-    }
 }
