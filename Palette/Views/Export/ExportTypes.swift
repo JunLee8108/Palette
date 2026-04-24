@@ -56,7 +56,7 @@ struct ExportOptions {
     var showDayCount: Bool = false
 
     var stripesOrientation: StripesOrientation = .horizontal
-    var skipEmpty: Bool = false
+    var skipEmpty: Bool = true
 
     var background: ExportBackground = .cream
     var showWatermark: Bool = true
