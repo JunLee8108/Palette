@@ -38,8 +38,10 @@ struct SettingsView: View {
                     .padding(.top, 8)
                     .padding(.bottom, 40)
                 }
-                .scrollDismissesKeyboard(.interactively)
+                .scrollDismissesKeyboard(.immediately)
             }
+            .contentShape(Rectangle())
+            .onTapGesture { nameFocused = false }
             .navigationTitle(L10n.t("Settings", "설정"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -98,6 +100,7 @@ struct SettingsView: View {
             .autocorrectionDisabled()
             .submitLabel(.done)
             .focused($nameFocused)
+            .frame(minHeight: 22)
             .onSubmit { commitName() }
             .onChange(of: draftName) { _, newValue in
                 if newValue.count > OnboardingUsernamePage.maxLength {
@@ -115,6 +118,8 @@ struct SettingsView: View {
             RoundedRectangle(cornerRadius: 14)
                 .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
         )
+        .contentShape(Rectangle())
+        .onTapGesture { nameFocused = true }
     }
 
     private var reminderRow: some View {
