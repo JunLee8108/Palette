@@ -15,7 +15,7 @@ struct PaletteWidgetBundle: WidgetBundle {
 
 // MARK: - Shared
 
-fileprivate enum WidgetPalette {
+enum WidgetPalette {
     static let background = Color(hex: "#FAF8F3")
     static let primary = Color(hex: "#2A2620")
     static let secondary = Color(hex: "#7A756E")
@@ -23,14 +23,14 @@ fileprivate enum WidgetPalette {
     static let emptyFill = Color(hex: "#E8E0D0").opacity(0.6)
 }
 
-fileprivate struct DayTile: Identifiable {
+struct DayTile: Identifiable {
     let id: String
     let date: Date
     let colorHex: String?
     let isToday: Bool
 }
 
-fileprivate func recentDayTiles(count: Int, reference: Date = Date()) -> [DayTile] {
+func recentDayTiles(count: Int, reference: Date = Date()) -> [DayTile] {
     let cal = Calendar.current
     let today = cal.startOfDay(for: reference)
     let dates: [Date] = (0..<count).map { offset in
@@ -49,7 +49,7 @@ fileprivate func recentDayTiles(count: Int, reference: Date = Date()) -> [DayTil
     }
 }
 
-fileprivate func nextMidnight(after date: Date) -> Date {
+func nextMidnight(after date: Date) -> Date {
     Calendar.current.nextDate(
         after: date,
         matching: DateComponents(hour: 0, minute: 0),
