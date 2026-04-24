@@ -63,8 +63,6 @@ struct GridWeekLayout: View {
                     .padding(.bottom, 32)
             }
 
-            Spacer(minLength: 0)
-
             GeometryReader { proxy in
                 VStack(spacing: 12) {
                     if options.showWeekdayLabels {
@@ -92,8 +90,6 @@ struct GridWeekLayout: View {
                 }
                 .frame(maxHeight: .infinity)
             }
-
-            Spacer(minLength: 0)
 
             if options.showDayCount || options.showWatermark {
                 ExportFooter(options: options, data: data)
@@ -130,8 +126,6 @@ struct GridMonthLayout: View {
                 ExportHeaderText(text: ExportText.header(for: options))
                     .padding(.bottom, 36)
             }
-
-            Spacer(minLength: 0)
 
             if let info = monthInfo {
                 GeometryReader { proxy in
@@ -171,8 +165,6 @@ struct GridMonthLayout: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-
-            Spacer(minLength: 0)
 
             if options.showDayCount || options.showWatermark {
                 ExportFooter(options: options, data: data)
@@ -225,8 +217,6 @@ struct GridYearLayout: View {
                     .padding(.bottom, 32)
             }
 
-            Spacer(minLength: 0)
-
             GeometryReader { proxy in
                 let spacing: CGFloat = 3
                 let cellH = (proxy.size.height - spacing * 6) / 7
@@ -247,8 +237,6 @@ struct GridYearLayout: View {
                 .frame(width: totalW, height: totalH)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-
-            Spacer(minLength: 0)
 
             if options.showDayCount || options.showWatermark {
                 ExportFooter(options: options, data: data)
