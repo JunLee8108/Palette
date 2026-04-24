@@ -11,7 +11,7 @@ struct DayDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var page: Page = .detail
-    @State private var detent: PresentationDetent = .medium
+    @State private var detent: PresentationDetent
     @State private var selectedSwatchId: String? = nil
     @State private var pendingColorHex: String? = nil
     @State private var showChangeWarning: Bool = false
@@ -19,7 +19,14 @@ struct DayDetailSheet: View {
 
     private enum Page { case detail, palette }
 
-    private let tileSize: CGFloat = 120
+    private static let tileSize: CGFloat = 120
+
+    init(date: Date, entry: ColorEntry?, onChanged: @escaping () -> Void = {}) {
+        self.date = date
+        self.entry = entry
+        self.onChanged = onChanged
+        _detent = State(initialValue: .height(Self.detailHeight(date: date, entry: entry)))
+    }
 
     private var dateFormatter: DateFormatter {
         let f = DateFormatter()
@@ -42,6 +49,33 @@ struct DayDetailSheet: View {
         ColorStore.requiresOverrideConfirmation(for: date, hasEntry: entry != nil)
     }
 
+    private var detailHeight: CGFloat {
+        Self.detailHeight(date: date, entry: entry)
+    }
+
+    private static func detailHeight(date: Date, entry: ColorEntry?) -> CGFloat {
+        let hasEntry = entry != nil
+        let hasStatus = ColorStore.isFuture(date) || !hasEntry
+        let canPick = ColorStore.canPickColor(for: date, hasEntry: hasEntry)
+        let canDelete = ColorStore.canDelete(for: date) && hasEntry
+        let buttonCount = (canPick ? 1 : 0) + (canDelete ? 1 : 0)
+
+        let topPad: CGFloat = 28
+        let tileToDate: CGFloat = 28
+        let dateText: CGFloat = 28
+        let statusBlock: CGFloat = hasStatus ? 26 : 0
+        let dateToActions: CGFloat = 28
+        let buttonH: CGFloat = 52
+        let buttonGap: CGFloat = 12
+        let bottomPad: CGFloat = 28
+
+        let actionsH: CGFloat = buttonCount > 0
+            ? CGFloat(buttonCount) * buttonH + CGFloat(max(0, buttonCount - 1)) * buttonGap
+            : 0
+
+        return topPad + tileSize + tileToDate + dateText + statusBlock + dateToActions + actionsH + bottomPad
+    }
+
     var body: some View {
         ZStack {
             switch page {
@@ -53,7 +87,7 @@ struct DayDetailSheet: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.easeInOut(duration: 0.25), value: page)
-        .presentationDetents([.medium, .large], selection: $detent)
+        .presentationDetents([.height(detailHeight), .large], selection: $detent)
         .presentationDragIndicator(.visible)
         .presentationBackground(PaletteTheme.background)
         .sensoryFeedback(.impact(weight: .medium), trigger: selectedSwatchId)
@@ -121,15 +155,15 @@ struct DayDetailSheet: View {
     @ViewBuilder
     private var currentTile: some View {
         if let hex = displayColorHex {
-            ColorTile(color: Color(hex: hex), size: tileSize)
+            ColorTile(color: Color(hex: hex), size: Self.tileSize)
         } else if isToday {
-            ColorTile(color: .clear, size: tileSize, isEmpty: true)
+            ColorTile(color: .clear, size: Self.tileSize, isEmpty: true)
         } else {
-            RoundedRectangle(cornerRadius: tileSize * 0.22)
+            RoundedRectangle(cornerRadius: Self.tileSize * 0.22)
                 .fill(PaletteTheme.surface)
-                .frame(width: tileSize, height: tileSize)
+                .frame(width: Self.tileSize, height: Self.tileSize)
                 .overlay(
-                    RoundedRectangle(cornerRadius: tileSize * 0.22)
+                    RoundedRectangle(cornerRadius: Self.tileSize * 0.22)
                         .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
                 )
         }
@@ -279,7 +313,7 @@ struct DayDetailSheet: View {
 
     private func closePalette() {
         withAnimation(.easeInOut(duration: 0.3)) {
-            detent = .medium
+            detent = .height(detailHeight)
             page = .detail
         }
     }
