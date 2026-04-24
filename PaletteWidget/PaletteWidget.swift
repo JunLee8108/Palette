@@ -231,11 +231,6 @@ struct ThisMonthWidget: Widget {
 struct ThisMonthMediumView: View {
     let entry: ThisMonthEntry
 
-    private var weekdaySymbols: [String] {
-        let base = Calendar.current.veryShortWeekdaySymbols
-        return (0..<7).map { base[(entry.firstWeekday - 1 + $0) % 7] }
-    }
-
     private var monthSymbol: String {
         Calendar.current.standaloneMonthSymbols[entry.month - 1]
     }
@@ -261,8 +256,10 @@ struct ThisMonthMediumView: View {
         HStack(alignment: .top, spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(monthSymbol)
-                    .font(.system(size: 18, weight: .semibold, design: .serif))
-                    .foregroundStyle(WidgetPalette.primary)
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(1.2)
+                    .foregroundStyle(WidgetPalette.secondary)
+                    .textCase(.uppercase)
                 Spacer(minLength: 0)
             }
             .frame(width: 70, alignment: .leading)
@@ -270,22 +267,11 @@ struct ThisMonthMediumView: View {
             GeometryReader { proxy in
                 let spacing: CGFloat = 2.5
                 let tile = (proxy.size.width - spacing * 6) / 7
-                VStack(spacing: 3) {
-                    HStack(spacing: spacing) {
-                        ForEach(0..<7, id: \.self) { i in
-                            Text(weekdaySymbols[i])
-                                .font(.system(size: 8, weight: .semibold))
-                                .foregroundStyle(WidgetPalette.tertiary)
-                                .frame(width: tile)
-                        }
-                    }
-
-                    VStack(spacing: spacing) {
-                        ForEach(0..<rows, id: \.self) { row in
-                            HStack(spacing: spacing) {
-                                ForEach(0..<7, id: \.self) { col in
-                                    monthCell(row: row, col: col, size: tile)
-                                }
+                VStack(spacing: spacing) {
+                    ForEach(0..<rows, id: \.self) { row in
+                        HStack(spacing: spacing) {
+                            ForEach(0..<7, id: \.self) { col in
+                                monthCell(row: row, col: col, size: tile)
                             }
                         }
                     }
