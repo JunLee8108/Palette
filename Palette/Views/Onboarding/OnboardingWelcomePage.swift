@@ -1,4 +1,5 @@
 import SwiftUI
+import PaletteShared
 
 struct OnboardingWelcomePage: View {
     @State private var tilesIn: Bool = false

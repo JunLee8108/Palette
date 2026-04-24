@@ -1,4 +1,5 @@
 import SwiftUI
+import PaletteShared
 
 struct OnboardingGridPage: View {
     private let columns: Int = 7
