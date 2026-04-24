@@ -69,8 +69,8 @@ struct GridWeekLayout: View {
                         HStack(spacing: 10) {
                             ForEach(0..<7, id: \.self) { i in
                                 Text(weekdaySymbols[i])
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .tracking(0.5)
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .tracking(0.8)
                                     .foregroundStyle(ExportPalette.tertiary)
                                     .frame(maxWidth: .infinity)
                             }
@@ -131,8 +131,8 @@ struct GridMonthLayout: View {
                 GeometryReader { proxy in
                     let spacing: CGFloat = 8
                     let tileW = (proxy.size.width - spacing * 6) / 7
-                    let headerH: CGFloat = options.showWeekdayLabels ? 24 : 0
-                    let headerGap: CGFloat = options.showWeekdayLabels ? 14 : 0
+                    let headerH: CGFloat = options.showWeekdayLabels ? 28 : 0
+                    let headerGap: CGFloat = options.showWeekdayLabels ? 18 : 0
                     let availH = proxy.size.height - headerH - headerGap
                     let tileH = (availH - CGFloat(info.rows - 1) * spacing) / CGFloat(info.rows)
                     let tile = max(0, min(tileW, tileH))
@@ -143,8 +143,8 @@ struct GridMonthLayout: View {
                             HStack(spacing: spacing) {
                                 ForEach(0..<7, id: \.self) { i in
                                     Text(weekdaySymbols[i])
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .tracking(0.5)
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .tracking(0.6)
                                         .foregroundStyle(ExportPalette.tertiary)
                                         .frame(width: tile)
                                 }
@@ -213,21 +213,21 @@ struct GridYearLayout: View {
     var body: some View {
         VStack(spacing: 0) {
             if options.showHeader {
-                ExportHeaderText(text: ExportText.header(for: options), size: 32)
+                ExportHeaderText(text: ExportText.header(for: options), size: 44)
                     .padding(.bottom, 32)
             }
 
             GeometryReader { proxy in
                 let spacing: CGFloat = 3
-                let cellH = (proxy.size.height - spacing * 6) / 7
-                let cellW = (proxy.size.width - CGFloat(totalRows - 1) * spacing) / CGFloat(totalRows)
+                let cellW = (proxy.size.width - spacing * 6) / 7
+                let cellH = (proxy.size.height - CGFloat(totalRows - 1) * spacing) / CGFloat(totalRows)
                 let cell = max(0, min(cellW, cellH))
-                let totalW = cell * CGFloat(totalRows) + spacing * CGFloat(totalRows - 1)
-                let totalH = cell * 7 + spacing * 6
+                let totalW = cell * 7 + spacing * 6
+                let totalH = cell * CGFloat(totalRows) + spacing * CGFloat(totalRows - 1)
 
-                HStack(spacing: spacing) {
+                VStack(spacing: spacing) {
                     ForEach(0..<totalRows, id: \.self) { row in
-                        VStack(spacing: spacing) {
+                        HStack(spacing: spacing) {
                             ForEach(0..<7, id: \.self) { col in
                                 yearCell(row: row, col: col, size: cell)
                             }
@@ -298,28 +298,28 @@ struct StripesLayout: View {
         .overlay(alignment: .topLeading) {
             if options.showHeader {
                 Text(ExportText.header(for: options))
-                    .font(.system(size: 14, weight: .semibold))
-                    .tracking(1.8)
+                    .font(.system(size: 22, weight: .semibold))
+                    .tracking(2)
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
                     .background(
                         Capsule().fill(Color.black.opacity(0.35))
                     )
-                    .padding(24)
+                    .padding(32)
             }
         }
         .overlay(alignment: .bottomTrailing) {
             if options.showWatermark {
                 Text("palette")
-                    .font(.system(size: 14, weight: .medium, design: .serif))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
+                    .font(.system(size: 22, weight: .medium, design: .serif))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
                     .background(
                         Capsule().fill(Color.black.opacity(0.25))
                     )
-                    .padding(24)
+                    .padding(32)
             }
         }
     }
@@ -349,12 +349,12 @@ struct ExportTile: View {
 
 struct ExportHeaderText: View {
     let text: String
-    var size: CGFloat = 20
+    var size: CGFloat = 32
 
     var body: some View {
         Text(text)
             .font(.system(size: size, weight: .semibold, design: .serif))
-            .tracking(size > 24 ? 1.5 : 1.2)
+            .tracking(size >= 40 ? 2 : (size >= 28 ? 1.6 : 1.2))
             .foregroundStyle(ExportPalette.primary)
     }
 }
@@ -376,14 +376,14 @@ struct ExportFooter: View {
         HStack {
             if options.showWatermark {
                 Text("palette")
-                    .font(.system(size: 13, weight: .regular, design: .serif))
-                    .tracking(1)
+                    .font(.system(size: 18, weight: .regular, design: .serif))
+                    .tracking(1.2)
                     .foregroundStyle(ExportPalette.secondary)
             }
             Spacer()
             if options.showDayCount {
                 Text(ExportText.dayCount(filled: data.filledCount, total: totalForScope))
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 18, weight: .medium))
                     .monospacedDigit()
                     .foregroundStyle(ExportPalette.secondary)
             }
