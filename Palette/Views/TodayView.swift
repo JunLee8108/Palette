@@ -57,11 +57,11 @@ struct TodayView: View {
         ZStack {
             PaletteTheme.background.ignoresSafeArea()
 
-            VStack(spacing: 28) {
+            VStack(spacing: 20) {
                 Spacer()
 
                 Text(dayFormatter.string(from: today))
-                    .font(.system(size: 44, weight: .thin, design: .serif))
+                    .font(.system(size: 30, weight: .medium, design: .serif))
                     .tracking(0.5)
                     .foregroundStyle(PaletteTheme.primaryText)
 
@@ -74,11 +74,10 @@ struct TodayView: View {
                     .padding(.horizontal, 32)
 
                 Spacer()
-                Spacer()
             }
-
             settingsButton
         }
+        .padding(.bottom, 50)
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }

@@ -24,7 +24,7 @@ struct LaunchView: View {
             PaletteTheme.background
                 .ignoresSafeArea()
 
-            VStack(spacing: 44) {
+            VStack(spacing: 20) {
                 Spacer()
 
                 grid
@@ -47,7 +47,7 @@ struct LaunchView: View {
                 }
 
                 Spacer()
-                Spacer()
+//                Spacer()
             }
         }
         .opacity(fadeOut ? 0 : 1)
