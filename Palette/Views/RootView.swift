@@ -195,7 +195,6 @@ struct RootView: View {
         switch currentTab {
         case 1: return .week
         case 2: return .month
-        case 3: return .year
         default: return .month
         }
     }
