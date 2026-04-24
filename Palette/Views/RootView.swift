@@ -10,6 +10,7 @@ struct RootView: View {
     @State private var weekScrollTick: Int = 0
     @State private var monthScrollTick: Int = 0
     @State private var year: Int
+    @State private var showExport: Bool = false
 
     private struct SelectedDay: Identifiable {
         let id: String
@@ -131,6 +132,9 @@ struct RootView: View {
                 onChanged: { selectedDay = nil }
             )
         }
+        .sheet(isPresented: $showExport) {
+            ExportView(initialScope: exportScope)
+        }
         .onOpenURL { url in
             guard url.scheme == "palette" else { return }
             let target: Int?
@@ -164,6 +168,18 @@ struct RootView: View {
                     .tracking(0.5)
                     .foregroundStyle(PaletteTheme.secondaryText)
                     .monospacedDigit()
+
+                Button {
+                    showExport = true
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(PaletteTheme.secondaryText)
+                        .padding(.leading, 14)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.t("Export", "내보내기"))
             }
             .padding(.horizontal, 24)
             .padding(.top, 16)
@@ -173,6 +189,15 @@ struct RootView: View {
                 .padding(.bottom, 12)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var exportScope: ExportScope {
+        switch currentTab {
+        case 1: return .week
+        case 2: return .month
+        case 3: return .year
+        default: return .month
+        }
     }
 
     private static let plainYearFormat: IntegerFormatStyle<Int> = .number.grouping(.never)
