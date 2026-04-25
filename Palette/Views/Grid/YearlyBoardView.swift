@@ -11,15 +11,52 @@ struct YearlyBoardView: View {
     private let cellSpacing: CGFloat = 4
     private let monthLabelWidth: CGFloat = 30
 
-    private var jan1Column: Int {
-        let jan1 = DayKey.january1(of: year)
-        let weekday = Calendar.current.component(.weekday, from: jan1)
-        return (weekday - firstWeekday + 7) % 7
+    struct YearLayout {
+        let jan1Column: Int
+        let totalRows: Int
+        let totalDays: Int
+        let monthLabelByRow: [Int: String]
     }
 
-    private var totalRows: Int {
-        let days = DayKey.daysInYear(year)
-        return Int(ceil(Double(jan1Column + days) / 7.0))
+    private struct YearLayoutKey: Hashable {
+        let year: Int
+        let firstWeekday: Int
+    }
+
+    private static let layoutMemo = Memo<YearLayoutKey, YearLayout>()
+
+    private var layout: YearLayout {
+        Self.layoutMemo.get(YearLayoutKey(year: year, firstWeekday: firstWeekday)) {
+            let cal = Calendar.current
+            let jan1 = DayKey.january1(of: year)
+            let weekday = cal.component(.weekday, from: jan1)
+            let jan1Col = (weekday - firstWeekday + 7) % 7
+            let totalDays = DayKey.daysInYear(year)
+            let totalRows = Int(ceil(Double(jan1Col + totalDays) / 7.0))
+
+            let symbols = cal.shortMonthSymbols
+            var labels: [Int: String] = [:]
+            for month in 1...12 {
+                var comps = DateComponents()
+                comps.year = year
+                comps.month = month
+                comps.day = 1
+                guard let date = cal.date(from: comps),
+                      let ord = cal.ordinality(of: .day, in: .year, for: date) else { continue }
+                let totalOffset = jan1Col + (ord - 1)
+                let row = totalOffset / 7
+                if labels[row] == nil {
+                    labels[row] = symbols[month - 1]
+                }
+            }
+
+            return YearLayout(
+                jan1Column: jan1Col,
+                totalRows: totalRows,
+                totalDays: totalDays,
+                monthLabelByRow: labels
+            )
+        }
     }
 
     private var weekdaySymbols: [String] {
@@ -27,23 +64,7 @@ struct YearlyBoardView: View {
         return (0..<7).map { base[(firstWeekday - 1 + $0) % 7] }
     }
 
-    private var monthLabelByRow: [Int: String] {
-        let cal = Calendar.current
-        let symbols = cal.shortMonthSymbols
-        var result: [Int: String] = [:]
-        for month in 1...12 {
-            var comps = DateComponents()
-            comps.year = year
-            comps.month = month
-            comps.day = 1
-            guard let date = cal.date(from: comps),
-                  let pos = gridPosition(for: date) else { continue }
-            if result[pos.row] == nil {
-                result[pos.row] = symbols[month - 1]
-            }
-        }
-        return result
-    }
+    private var todayKey: String { DayKey.make(for: Date()) }
 
     var body: some View {
         GeometryReader { proxy in
@@ -79,9 +100,9 @@ struct YearlyBoardView: View {
 
     private func gridBody(cellSize: CGFloat) -> some View {
         LazyVStack(alignment: .leading, spacing: cellSpacing) {
-            ForEach(0..<totalRows, id: \.self) { row in
+            ForEach(0..<layout.totalRows, id: \.self) { row in
                 HStack(spacing: 8) {
-                    Text(monthLabelByRow[row] ?? "")
+                    Text(layout.monthLabelByRow[row] ?? "")
                         .font(.system(size: 10, weight: .medium))
                         .tracking(0.5)
                         .foregroundStyle(PaletteTheme.secondaryText)
@@ -99,8 +120,8 @@ struct YearlyBoardView: View {
 
     @ViewBuilder
     private func cellAt(row: Int, col: Int, size: CGFloat) -> some View {
-        let offset = row * 7 + col - jan1Column
-        if offset < 0 || offset >= DayKey.daysInYear(year) {
+        let offset = row * 7 + col - layout.jan1Column
+        if offset < 0 || offset >= layout.totalDays {
             Color.clear.frame(width: size, height: size)
         } else {
             let date = Calendar.current.date(
@@ -110,7 +131,6 @@ struct YearlyBoardView: View {
             ) ?? Date()
             let key = DayKey.make(for: date)
             let entry = entriesByKey[key]
-            let isToday = DayKey.isToday(date)
 
             Button {
                 onSelectDate(date)
@@ -118,19 +138,12 @@ struct YearlyBoardView: View {
                 GridCell(
                     size: size,
                     colorHex: entry?.colorHex,
-                    isToday: isToday,
+                    isToday: key == todayKey,
                     isInYear: true
                 )
             }
             .buttonStyle(.plain)
         }
-    }
-
-    private func gridPosition(for date: Date) -> (row: Int, col: Int)? {
-        let cal = Calendar.current
-        guard let ord = cal.ordinality(of: .day, in: .year, for: date) else { return nil }
-        let totalOffset = jan1Column + (ord - 1)
-        return (row: totalOffset / 7, col: totalOffset % 7)
     }
 }
 

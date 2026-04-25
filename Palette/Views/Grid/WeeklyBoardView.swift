@@ -14,9 +14,20 @@ struct WeeklyBoardView: View {
     private let tileSpacing: CGFloat = 6
     private let rowSpacing: CGFloat = 24
 
-    private var weeks: [WeekSlot] {
-        WeekSlot.all(in: year, firstWeekday: firstWeekday)
+    private struct WeeksKey: Hashable {
+        let year: Int
+        let firstWeekday: Int
     }
+
+    private static let weeksMemo = Memo<WeeksKey, [WeekSlot]>()
+
+    private var weeks: [WeekSlot] {
+        Self.weeksMemo.get(WeeksKey(year: year, firstWeekday: firstWeekday)) {
+            WeekSlot.all(in: year, firstWeekday: firstWeekday)
+        }
+    }
+
+    private var todayKey: String { DayKey.make(for: Date()) }
 
     private var anchorWeekId: String? {
         let cal = Calendar.current
@@ -26,7 +37,13 @@ struct WeeklyBoardView: View {
         target.month = today.month
         target.day = today.day
         guard let anchorDate = cal.date(from: target) else { return nil }
-        return weeks.first(where: { $0.contains(anchorDate) })?.id
+        let anchorKey = DayKey.make(for: anchorDate)
+        return weeks.first { week in
+            week.dates.contains { date in
+                guard let date else { return false }
+                return DayKey.make(for: date) == anchorKey
+            }
+        }?.id
     }
 
     var body: some View {
@@ -37,8 +54,9 @@ struct WeeklyBoardView: View {
             ScrollViewReader { scroller in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: rowSpacing) {
+                        let anchor = anchorWeekId
                         ForEach(weeks) { week in
-                            weekRow(week, tileSize: tileSize)
+                            weekRow(week, tileSize: tileSize, isCurrent: week.id == anchor)
                                 .id(week.id)
                         }
                     }
@@ -66,13 +84,13 @@ struct WeeklyBoardView: View {
     }
 
     @ViewBuilder
-    private func weekRow(_ week: WeekSlot, tileSize: CGFloat) -> some View {
+    private func weekRow(_ week: WeekSlot, tileSize: CGFloat, isCurrent: Bool) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(week.label)
                 .font(.system(size: 11, weight: .semibold))
                 .tracking(1)
                 .foregroundStyle(
-                    week.isCurrent
+                    isCurrent
                         ? PaletteTheme.primaryText
                         : PaletteTheme.secondaryText
                 )
@@ -97,7 +115,7 @@ struct WeeklyBoardView: View {
                 GridCell(
                     size: size,
                     colorHex: entry?.colorHex,
-                    isToday: DayKey.isToday(date),
+                    isToday: key == todayKey,
                     isInYear: true
                 )
             }
@@ -112,16 +130,6 @@ struct WeekSlot: Identifiable {
     let id: String
     let dates: [Date?]
     let label: String
-
-    func contains(_ date: Date) -> Bool {
-        let key = DayKey.make(for: date)
-        return dates.contains { d in
-            guard let d else { return false }
-            return DayKey.make(for: d) == key
-        }
-    }
-
-    var isCurrent: Bool { contains(Date()) }
 
     static func all(in year: Int, firstWeekday: Int) -> [WeekSlot] {
         let cal = Calendar.current
