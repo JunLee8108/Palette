@@ -27,6 +27,47 @@ struct MonthlyBoardView: View {
         Calendar.current.component(.month, from: Date())
     }
 
+    private var todayKey: String { DayKey.make(for: Date()) }
+
+    struct MonthLayout {
+        let month: Int
+        let firstOfMonth: Date
+        let startOffset: Int
+        let daysInMonth: Int
+        let rows: Int
+    }
+
+    private struct MonthLayoutKey: Hashable {
+        let year: Int
+        let firstWeekday: Int
+    }
+
+    private static let monthLayoutsMemo = Memo<MonthLayoutKey, [MonthLayout]>()
+
+    private var monthLayouts: [MonthLayout] {
+        Self.monthLayoutsMemo.get(MonthLayoutKey(year: year, firstWeekday: firstWeekday)) {
+            let cal = Calendar.current
+            return (1...12).compactMap { month -> MonthLayout? in
+                var comps = DateComponents()
+                comps.year = year
+                comps.month = month
+                comps.day = 1
+                guard let firstOfMonth = cal.date(from: comps) else { return nil }
+                let firstWeekdayOfMonth = cal.component(.weekday, from: firstOfMonth)
+                let startOffset = (firstWeekdayOfMonth - firstWeekday + 7) % 7
+                let daysInMonth = cal.range(of: .day, in: .month, for: firstOfMonth)?.count ?? 30
+                let rows = Int(ceil(Double(startOffset + daysInMonth) / 7.0))
+                return MonthLayout(
+                    month: month,
+                    firstOfMonth: firstOfMonth,
+                    startOffset: startOffset,
+                    daysInMonth: daysInMonth,
+                    rows: rows
+                )
+            }
+        }
+    }
+
     var body: some View {
         GeometryReader { proxy in
             let availableWidth = proxy.size.width - hPadding * 2
@@ -42,9 +83,9 @@ struct MonthlyBoardView: View {
                 ScrollViewReader { scroller in
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: monthSpacing) {
-                            ForEach(1...12, id: \.self) { month in
-                                monthBlock(month: month, tileSize: tileSize)
-                                    .id(month)
+                            ForEach(monthLayouts, id: \.month) { layout in
+                                monthBlock(layout: layout, tileSize: tileSize)
+                                    .id(layout.month)
                             }
                         }
                         .padding(.horizontal, hPadding)
@@ -86,40 +127,27 @@ struct MonthlyBoardView: View {
     }
 
     @ViewBuilder
-    private func monthBlock(month: Int, tileSize: CGFloat) -> some View {
+    private func monthBlock(layout: MonthLayout, tileSize: CGFloat) -> some View {
         let cal = Calendar.current
-        let firstOfMonth: Date = {
-            var comps = DateComponents()
-            comps.year = year
-            comps.month = month
-            comps.day = 1
-            return cal.date(from: comps) ?? Date()
-        }()
-
-        let firstWeekdayOfMonth = cal.component(.weekday, from: firstOfMonth)
-        let startOffset = (firstWeekdayOfMonth - firstWeekday + 7) % 7
-        let daysInMonth = cal.range(of: .day, in: .month, for: firstOfMonth)?.count ?? 30
-        let totalCells = startOffset + daysInMonth
-        let rows = Int(ceil(Double(totalCells) / 7.0))
-        let isCurrent = (month == currentMonth)
+        let isCurrent = (layout.month == currentMonth)
 
         VStack(alignment: .leading, spacing: 14) {
-            Text(monthSymbols[month - 1])
+            Text(monthSymbols[layout.month - 1])
                 .font(.system(size: 17, weight: isCurrent ? .semibold : .regular, design: .serif))
                 .foregroundStyle(
                     isCurrent ? PaletteTheme.primaryText : PaletteTheme.secondaryText
                 )
 
             VStack(spacing: tileSpacing) {
-                ForEach(0..<rows, id: \.self) { row in
+                ForEach(0..<layout.rows, id: \.self) { row in
                     HStack(spacing: tileSpacing) {
                         ForEach(0..<7, id: \.self) { col in
                             let idx = row * 7 + col
-                            let dayOfMonth = idx - startOffset + 1
-                            if dayOfMonth < 1 || dayOfMonth > daysInMonth {
+                            let dayOfMonth = idx - layout.startOffset + 1
+                            if dayOfMonth < 1 || dayOfMonth > layout.daysInMonth {
                                 Color.clear.frame(width: tileSize, height: tileSize)
                             } else {
-                                let date = cal.date(byAdding: .day, value: dayOfMonth - 1, to: firstOfMonth) ?? firstOfMonth
+                                let date = cal.date(byAdding: .day, value: dayOfMonth - 1, to: layout.firstOfMonth) ?? layout.firstOfMonth
                                 cell(for: date, size: tileSize)
                             }
                         }
@@ -139,7 +167,7 @@ struct MonthlyBoardView: View {
             GridCell(
                 size: size,
                 colorHex: entry?.colorHex,
-                isToday: DayKey.isToday(date),
+                isToday: key == todayKey,
                 isInYear: true
             )
         }

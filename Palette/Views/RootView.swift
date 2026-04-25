@@ -26,12 +26,31 @@ struct RootView: View {
     }
 
     private var entriesByKey: [String: ColorEntry] {
-        var dict: [String: ColorEntry] = [:]
-        dict.reserveCapacity(allEntries.count)
-        for entry in allEntries where DayKey.year(of: entry.date) == year {
-            dict[entry.dayKey] = entry
+        Self.cachedEntries(allEntries: allEntries, year: year)
+    }
+
+    private struct EntriesKey: Hashable {
+        let year: Int
+        let count: Int
+        let lastUpdate: Date?
+    }
+
+    private static let entriesMemo = Memo<EntriesKey, [String: ColorEntry]>()
+
+    private static func cachedEntries(allEntries: [ColorEntry], year: Int) -> [String: ColorEntry] {
+        let key = EntriesKey(
+            year: year,
+            count: allEntries.count,
+            lastUpdate: allEntries.map(\.updatedAt).max()
+        )
+        return entriesMemo.get(key) {
+            var dict: [String: ColorEntry] = [:]
+            dict.reserveCapacity(allEntries.count)
+            for entry in allEntries where DayKey.year(of: entry.date) == year {
+                dict[entry.dayKey] = entry
+            }
+            return dict
         }
-        return dict
     }
 
     private var filledCount: Int { entriesByKey.count }
