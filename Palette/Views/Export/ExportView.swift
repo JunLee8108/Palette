@@ -163,7 +163,7 @@ struct ExportView: View {
                 }
                 .pickerStyle(.segmented)
                 .onChange(of: options.scope) { _, newScope in
-                    if newScope != .week, options.style == .stripes {
+                    if newScope != .week, options.style != .grid {
                         options.style = .grid
                     }
                 }
@@ -178,7 +178,8 @@ struct ExportView: View {
                 }
             }
 
-            if options.style == .grid {
+            switch options.style {
+            case .grid:
                 section(title: L10n.t("Grid options", "그리드 옵션")) {
                     toggleRow(L10n.t("Show header", "헤더"), $options.showHeader)
                     if options.scope != .year {
@@ -186,7 +187,7 @@ struct ExportView: View {
                     }
                     toggleRow(L10n.t("Show day count", "일수 표시"), $options.showDayCount)
                 }
-            } else {
+            case .stripes:
                 section(title: L10n.t("Stripes options", "스트라이프 옵션")) {
                     pickerRow(title: L10n.t("Orientation", "방향")) {
                         Picker("", selection: $options.stripesOrientation) {
@@ -196,6 +197,11 @@ struct ExportView: View {
                     }
                     toggleRow(L10n.t("Skip empty days", "빈 날 제외"), $options.skipEmpty)
                     toggleRow(L10n.t("Show header", "헤더"), $options.showHeader)
+                }
+            case .swatch:
+                section(title: L10n.t("Swatch options", "스와치 옵션")) {
+                    toggleRow(L10n.t("Show header", "헤더"), $options.showHeader)
+                    toggleRow(L10n.t("Show day count", "일수 표시"), $options.showDayCount)
                 }
             }
 
