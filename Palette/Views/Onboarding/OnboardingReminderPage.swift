@@ -16,7 +16,7 @@ struct OnboardingReminderPage: View {
             Spacer()
 
             VStack(spacing: 14) {
-                Text(L10n.t("When should we ask?", "언제 물어볼까요?"))
+                Text(L10n.t("Reminder?", "알림?"))
                     .font(.system(size: 32, weight: .thin, design: .serif))
                     .tracking(0.5)
                     .foregroundStyle(PaletteTheme.primaryText)

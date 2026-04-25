@@ -13,7 +13,7 @@ struct OnboardingUsernamePage: View {
             Spacer()
 
             VStack(spacing: 14) {
-                Text(L10n.t("What should we call you?", "어떻게 불러드릴까요?"))
+                Text(L10n.t("Name?", "이름?"))
                     .font(.system(size: 32, weight: .thin, design: .serif))
                     .tracking(0.5)
                     .foregroundStyle(PaletteTheme.primaryText)
