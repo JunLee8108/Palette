@@ -74,18 +74,17 @@ struct OnboardingUsernamePage: View {
                         .monospacedDigit()
                 }
             }
-            .padding(.horizontal, 28)
+            .padding(.horizontal, 40)
+            .contentShape(Rectangle())
+            .onTapGesture { isFocused = true }
 
             Spacer()
             Spacer()
         }
         .frame(maxWidth: .infinity)
-        .onAppear {
-            textIn = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                isFocused = true
-            }
-        }
+        .contentShape(Rectangle())
+        .onTapGesture { isFocused = false }
+        .onAppear { textIn = true }
     }
 }
 
