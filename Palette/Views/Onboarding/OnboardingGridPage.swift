@@ -10,7 +10,7 @@ struct OnboardingGridPage: View {
     @State private var filledCount: Int = 0
     @State private var textIn: Bool = false
     @State private var gridColors: [Color] = []
-    @State private var revealOrder: [Int] = []
+    @State private var revealPosition: [Int] = []
 
     var body: some View {
         VStack(spacing: 44) {
@@ -74,7 +74,7 @@ struct OnboardingGridPage: View {
                 HStack(spacing: spacing) {
                     ForEach(0..<columns, id: \.self) { col in
                         let index = row * columns + col
-                        let revealIndex = revealOrder.firstIndex(of: index) ?? index
+                        let revealIndex = revealPosition.indices.contains(index) ? revealPosition[index] : index
                         let isVisible = filledCount > revealIndex
                         let color = gridColors.indices.contains(index) ? gridColors[index] : .clear
 
@@ -99,7 +99,13 @@ struct OnboardingGridPage: View {
     private func runAnimation() async {
         let total = columns * rows
         gridColors = (0..<total).map { _ in randomPaletteColor() }
-        revealOrder = Array(0..<total).shuffled()
+
+        let order = Array(0..<total).shuffled()
+        var positions = Array(repeating: 0, count: total)
+        for (step, cellIndex) in order.enumerated() {
+            positions[cellIndex] = step
+        }
+        revealPosition = positions
 
         try? await Task.sleep(nanoseconds: 250_000_000)
         textIn = true
