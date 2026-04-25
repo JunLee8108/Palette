@@ -117,7 +117,7 @@ struct OnboardingView: View {
                 : L10n.t("Continue", "계속")
         case 3:
             return reminderTime == nil
-                ? L10n.t("Set a time to continue", "시간을 설정해주세요")
+                ? L10n.t("Skip", "건너뛰기")
                 : L10n.t("Enable reminder", "알림 설정")
         default:
             return L10n.t("Start", "시작하기")
@@ -125,8 +125,7 @@ struct OnboardingView: View {
     }
 
     private var isPrimaryEnabled: Bool {
-        if pageIndex == 3 { return reminderTime != nil }
-        return true
+        true
     }
 
     private func advance() {
@@ -136,13 +135,14 @@ struct OnboardingView: View {
             username = trimmedUsername
             navigateForward(to: 3)
         case 3:
-            guard let time = reminderTime else { return }
             Task {
-                let granted = await NotificationManager.shared.requestAuthorization()
-                if granted {
-                    NotificationManager.shared.scheduleDailyReminder(at: time)
+                if let time = reminderTime {
+                    let granted = await NotificationManager.shared.requestAuthorization()
+                    if granted {
+                        NotificationManager.shared.scheduleDailyReminder(at: time)
+                    }
+                    UserDefaults.standard.set(time.timeIntervalSince1970, forKey: "palette.reminderTime")
                 }
-                UserDefaults.standard.set(time.timeIntervalSince1970, forKey: "palette.reminderTime")
                 navigateForward(to: 4)
             }
         case 4:

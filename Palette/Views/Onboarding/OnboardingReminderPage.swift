@@ -43,8 +43,20 @@ struct OnboardingReminderPage: View {
             .offset(y: textIn ? 0 : 10)
             .animation(.easeOut(duration: 0.6), value: textIn)
 
-            timeButton
-                .padding(.horizontal, 28)
+            VStack(spacing: 12) {
+                timeButton
+
+                HStack {
+                    Text(L10n.t("Optional", "선택 사항"))
+                        .font(.system(size: 12, weight: .medium))
+                        .tracking(1)
+                        .foregroundStyle(PaletteTheme.tertiaryText)
+                        .textCase(.uppercase)
+                    Spacer()
+                }
+                .padding(.horizontal, 8)
+            }
+            .padding(.horizontal, 28)
 
             Spacer()
             Spacer()
