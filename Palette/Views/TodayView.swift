@@ -9,6 +9,7 @@ struct TodayView: View {
     @AppStorage("palette.username") private var username: String = ""
 
     @State private var showSettings: Bool = false
+    @State private var showInfo: Bool = false
     @State private var showPalette: Bool = false
     @State private var selectedSwatchId: String? = nil
     @State private var previewColorHex: String? = nil
@@ -75,11 +76,15 @@ struct TodayView: View {
 
                 Spacer()
             }
-            settingsButton
+            topBar
         }
         .padding(.bottom, 50)
         .sheet(isPresented: $showSettings) {
             SettingsView()
+        }
+        .sheet(isPresented: $showInfo) {
+            InfoSheetView()
+                .presentationBackground(PaletteTheme.background)
         }
         .sheet(isPresented: $showPalette) {
             paletteSheet
@@ -138,12 +143,25 @@ struct TodayView: View {
         }
     }
 
-    // MARK: Settings
+    // MARK: Top bar
 
-    private var settingsButton: some View {
+    private var topBar: some View {
         VStack {
             HStack {
+                Button {
+                    showInfo = true
+                } label: {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 18, weight: .regular))
+                        .foregroundStyle(PaletteTheme.secondaryText)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.t("How to use", "사용 방법"))
+
                 Spacer()
+
                 Button {
                     showSettings = true
                 } label: {
