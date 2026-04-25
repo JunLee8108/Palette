@@ -83,9 +83,19 @@ struct OnboardingGridPage: View {
                                 .strokeBorder(PaletteTheme.tertiaryText.opacity(0.25), lineWidth: 0.5)
 
                             if isVisible {
-                                RoundedRectangle(cornerRadius: tileSize * 0.22)
-                                    .fill(color)
-                                    .transition(.scale(scale: 0.3).combined(with: .opacity))
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: tileSize * 0.22)
+                                        .fill(color)
+                                    RoundedRectangle(cornerRadius: tileSize * 0.22)
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [.white.opacity(0.32), .clear],
+                                                startPoint: .top,
+                                                endPoint: .center
+                                            )
+                                        )
+                                }
+                                .transition(.scale(scale: 0.3).combined(with: .opacity))
                             }
                         }
                         .frame(width: tileSize, height: tileSize)
