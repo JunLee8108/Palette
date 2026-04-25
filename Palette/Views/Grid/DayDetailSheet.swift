@@ -5,7 +5,7 @@ import PaletteShared
 struct DayDetailSheet: View {
     let date: Date
     let entry: ColorEntry?
-    var onChanged: () -> Void = {}
+    var onChanged: (String?) -> Void = { _ in }
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -21,7 +21,7 @@ struct DayDetailSheet: View {
 
     private static let tileSize: CGFloat = 120
 
-    init(date: Date, entry: ColorEntry?, onChanged: @escaping () -> Void = {}) {
+    init(date: Date, entry: ColorEntry?, onChanged: @escaping (String?) -> Void = { _ in }) {
         self.date = date
         self.entry = entry
         self.onChanged = onChanged
@@ -338,7 +338,7 @@ struct DayDetailSheet: View {
 
     private func clearEntry() {
         ColorStore.delete(for: date, in: context)
-        onChanged()
+        onChanged(nil)
         dismiss()
     }
 
@@ -348,9 +348,10 @@ struct DayDetailSheet: View {
 
         ColorStore.upsert(swatch: swatch, for: date, in: context)
 
+        let pickedKey = DayKey.make(for: date)
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 220_000_000)
-            onChanged()
+            onChanged(pickedKey)
             dismiss()
         }
     }

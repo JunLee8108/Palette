@@ -13,6 +13,7 @@ struct RootView: View {
     @State private var monthScrollTick: Int = 0
     @State private var year: Int
     @State private var showExport: Bool = false
+    @State private var recentlyFilledDayKey: String? = nil
 
     private struct SelectedDay: Identifiable {
         let id: String
@@ -89,6 +90,7 @@ struct RootView: View {
                                 firstWeekday: firstWeekday,
                                 entriesByKey: entriesByKey,
                                 scrollToTodayTick: weekScrollTick,
+                                recentlyFilledDayKey: recentlyFilledDayKey,
                                 onSelectDate: handleSelect
                             )
                             .id(year)
@@ -105,6 +107,7 @@ struct RootView: View {
                                 firstWeekday: firstWeekday,
                                 entriesByKey: entriesByKey,
                                 scrollToTodayTick: monthScrollTick,
+                                recentlyFilledDayKey: recentlyFilledDayKey,
                                 onSelectDate: handleSelect
                             )
                             .id(year)
@@ -120,6 +123,7 @@ struct RootView: View {
                                 year: year,
                                 firstWeekday: firstWeekday,
                                 entriesByKey: entriesByKey,
+                                recentlyFilledDayKey: recentlyFilledDayKey,
                                 onSelectDate: handleSelect
                             )
                             .id(year)
@@ -167,7 +171,18 @@ struct RootView: View {
             DayDetailSheet(
                 date: day.date,
                 entry: entriesByKey[day.id],
-                onChanged: { selectedDay = nil }
+                onChanged: { changedKey in
+                    if let changedKey {
+                        recentlyFilledDayKey = changedKey
+                        Task { @MainActor in
+                            try? await Task.sleep(nanoseconds: 1_200_000_000)
+                            if recentlyFilledDayKey == changedKey {
+                                recentlyFilledDayKey = nil
+                            }
+                        }
+                    }
+                    selectedDay = nil
+                }
             )
         }
         .sheet(isPresented: $showExport) {

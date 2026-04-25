@@ -6,6 +6,7 @@ struct MonthlyBoardView: View {
     let firstWeekday: Int
     let entriesByKey: [String: ColorEntry]
     let scrollToTodayTick: Int
+    var recentlyFilledDayKey: String? = nil
     var onSelectDate: (Date) -> Void
 
     @State private var didAutoScroll: Bool = false
@@ -168,7 +169,8 @@ struct MonthlyBoardView: View {
                 size: size,
                 colorHex: entry?.colorHex,
                 isToday: key == todayKey,
-                isInYear: true
+                isInYear: true,
+                animateFill: key == recentlyFilledDayKey
             )
         }
         .buttonStyle(.plain)

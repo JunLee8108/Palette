@@ -6,8 +6,10 @@ struct ColorTile: View {
     var size: CGFloat = 64
     var isSelected: Bool = false
     var isEmpty: Bool = false
+    var fillProgress: CGFloat = 1.0
 
     private var radius: CGFloat { size * 0.22 }
+    private var clampedProgress: CGFloat { min(max(fillProgress, 0), 1) }
 
     var body: some View {
         ZStack {
@@ -18,36 +20,42 @@ struct ColorTile: View {
                         style: StrokeStyle(lineWidth: 1, dash: [3, 3])
                     )
             } else {
-                RoundedRectangle(cornerRadius: radius)
-                    .fill(color)
+                ZStack {
+                    RoundedRectangle(cornerRadius: radius)
+                        .fill(color)
 
-                RoundedRectangle(cornerRadius: radius)
-                    .fill(
-                        LinearGradient(
-                            colors: [.white.opacity(0.32), .clear],
-                            startPoint: .top,
-                            endPoint: .center
+                    RoundedRectangle(cornerRadius: radius)
+                        .fill(
+                            LinearGradient(
+                                colors: [.white.opacity(0.32), .clear],
+                                startPoint: .top,
+                                endPoint: .center
+                            )
                         )
-                    )
 
-                RoundedRectangle(cornerRadius: radius)
-                    .fill(
-                        LinearGradient(
-                            colors: [.clear, .black.opacity(0.22)],
-                            startPoint: .center,
-                            endPoint: .bottom
+                    RoundedRectangle(cornerRadius: radius)
+                        .fill(
+                            LinearGradient(
+                                colors: [.clear, .black.opacity(0.22)],
+                                startPoint: .center,
+                                endPoint: .bottom
+                            )
                         )
-                    )
 
-                RoundedRectangle(cornerRadius: radius)
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: [.white.opacity(0.42), .clear],
-                            startPoint: .top,
-                            endPoint: .center
-                        ),
-                        lineWidth: 1
-                    )
+                    RoundedRectangle(cornerRadius: radius)
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [.white.opacity(0.42), .clear],
+                                startPoint: .top,
+                                endPoint: .center
+                            ),
+                            lineWidth: 1
+                        )
+                }
+                .mask(alignment: .leading) {
+                    Rectangle()
+                        .frame(width: size * clampedProgress)
+                }
 
                 if isSelected {
                     RoundedRectangle(cornerRadius: radius + 3)
@@ -57,7 +65,7 @@ struct ColorTile: View {
             }
         }
         .frame(width: size, height: size)
-        .shadow(color: isEmpty ? .clear : .black.opacity(0.08), radius: 4, y: 2)
+        .shadow(color: isEmpty ? .clear : .black.opacity(0.08 * clampedProgress), radius: 4, y: 2)
     }
 }
 

@@ -5,6 +5,7 @@ struct YearlyBoardView: View {
     let year: Int
     let firstWeekday: Int
     let entriesByKey: [String: ColorEntry]
+    var recentlyFilledDayKey: String? = nil
     var onSelectDate: (Date) -> Void
 
     private let hPadding: CGFloat = 24
@@ -139,7 +140,8 @@ struct YearlyBoardView: View {
                     size: size,
                     colorHex: entry?.colorHex,
                     isToday: key == todayKey,
-                    isInYear: true
+                    isInYear: true,
+                    animateFill: key == recentlyFilledDayKey
                 )
             }
             .buttonStyle(.plain)
