@@ -107,13 +107,19 @@ struct OnboardingGridPage: View {
         }
         revealPosition = positions
 
-        try? await Task.sleep(nanoseconds: 250_000_000)
-        textIn = true
+        do {
+            try await Task.sleep(nanoseconds: 250_000_000)
+            textIn = true
 
-        try? await Task.sleep(nanoseconds: 200_000_000)
-        for i in 1...total {
-            filledCount = i
-            try? await Task.sleep(nanoseconds: 35_000_000)
+            try await Task.sleep(nanoseconds: 200_000_000)
+            for i in 1...total {
+                filledCount = i
+                try await Task.sleep(nanoseconds: 35_000_000)
+            }
+        } catch {
+            // Task cancelled (e.g. user advanced to the next page);
+            // bail out cleanly so we don't queue the remaining reveal
+            // springs all at once during the transition.
         }
     }
 
