@@ -4,13 +4,15 @@ struct OnboardingView: View {
     var onComplete: () -> Void
 
     @State private var pageIndex: Int = 0
+    @State private var visitedPages: Set<Int> = [0]
+    @State private var animateNextPage: Bool = true
     @State private var username: String = ""
     @State private var reminderTime: Date? = nil
 
     private let totalPages: Int = 5
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .topLeading) {
             PaletteTheme.background
                 .ignoresSafeArea()
 
@@ -20,7 +22,26 @@ struct OnboardingView: View {
 
                 footer
             }
+
+            backButton
+                .opacity(pageIndex > 0 ? 1 : 0)
+                .allowsHitTesting(pageIndex > 0)
+                .animation(.easeInOut(duration: 0.3), value: pageIndex)
         }
+    }
+
+    private var backButton: some View {
+        Button(action: goBack) {
+            Image(systemName: "chevron.left")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(PaletteTheme.secondaryText)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.leading, 12)
+        .padding(.top, 8)
+        .accessibilityLabel(L10n.t("Back", "뒤로"))
     }
 
     @ViewBuilder
@@ -28,19 +49,19 @@ struct OnboardingView: View {
         ZStack {
             switch pageIndex {
             case 0:
-                OnboardingWelcomePage()
+                OnboardingWelcomePage(animateIn: animateNextPage)
                     .transition(.opacity)
             case 1:
-                OnboardingGridPage()
+                OnboardingGridPage(animateIn: animateNextPage)
                     .transition(.opacity)
             case 2:
-                OnboardingUsernamePage(username: $username)
+                OnboardingUsernamePage(username: $username, animateIn: animateNextPage)
                     .transition(.opacity)
             case 3:
-                OnboardingReminderPage(selectedTime: $reminderTime)
+                OnboardingReminderPage(selectedTime: $reminderTime, animateIn: animateNextPage)
                     .transition(.opacity)
             default:
-                OnboardingReadyPage(username: trimmedUsername)
+                OnboardingReadyPage(username: trimmedUsername, animateIn: animateNextPage)
                     .transition(.opacity)
             }
         }
@@ -113,7 +134,7 @@ struct OnboardingView: View {
         case 2:
             UserDefaults.standard.set(trimmedUsername, forKey: "palette.username")
             username = trimmedUsername
-            withAnimation { pageIndex = 3 }
+            navigateForward(to: 3)
         case 3:
             guard let time = reminderTime else { return }
             Task {
@@ -122,13 +143,25 @@ struct OnboardingView: View {
                     NotificationManager.shared.scheduleDailyReminder(at: time)
                 }
                 UserDefaults.standard.set(time.timeIntervalSince1970, forKey: "palette.reminderTime")
-                withAnimation { pageIndex = 4 }
+                navigateForward(to: 4)
             }
         case 4:
             onComplete()
         default:
-            withAnimation { pageIndex += 1 }
+            navigateForward(to: pageIndex + 1)
         }
+    }
+
+    private func navigateForward(to nextIndex: Int) {
+        animateNextPage = !visitedPages.contains(nextIndex)
+        visitedPages.insert(nextIndex)
+        withAnimation { pageIndex = nextIndex }
+    }
+
+    private func goBack() {
+        guard pageIndex > 0 else { return }
+        animateNextPage = false
+        withAnimation { pageIndex -= 1 }
     }
 }
 

@@ -2,15 +2,23 @@ import SwiftUI
 import PaletteShared
 
 struct OnboardingGridPage: View {
+    var animateIn: Bool
+
     private let columns: Int = 7
     private let rows: Int = 12
     private let tileSize: CGFloat = 22
     private let spacing: CGFloat = 4
 
-    @State private var filledCount: Int = 0
-    @State private var textIn: Bool = false
+    @State private var filledCount: Int
+    @State private var textIn: Bool
     @State private var gridColors: [Color] = []
     @State private var revealPosition: [Int] = []
+
+    init(animateIn: Bool = true) {
+        self.animateIn = animateIn
+        _filledCount = State(initialValue: animateIn ? 0 : columns * rows)
+        _textIn = State(initialValue: !animateIn)
+    }
 
     var body: some View {
         VStack(spacing: 44) {
@@ -65,7 +73,25 @@ struct OnboardingGridPage: View {
             Spacer()
         }
         .frame(maxWidth: .infinity)
-        .task { await runAnimation() }
+        .task {
+            if animateIn {
+                await runAnimation()
+            } else {
+                setupInstantly()
+            }
+        }
+    }
+
+    private func setupInstantly() {
+        let total = columns * rows
+        gridColors = (0..<total).map { _ in randomPaletteColor() }
+        let order = Array(0..<total).shuffled()
+        var positions = Array(repeating: 0, count: total)
+        for (step, cellIndex) in order.enumerated() {
+            positions[cellIndex] = step
+        }
+        revealPosition = positions
+        // filledCount and textIn already initialized to "fully visible" by init.
     }
 
     private var grid: some View {

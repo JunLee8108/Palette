@@ -2,13 +2,20 @@ import SwiftUI
 
 struct OnboardingReminderPage: View {
     @Binding var selectedTime: Date?
+    var animateIn: Bool
 
     @State private var showPicker: Bool = false
     @State private var draftTime: Date = defaultDraftTime()
-    @State private var textIn: Bool = false
+    @State private var textIn: Bool
 
     private static func defaultDraftTime() -> Date {
         Calendar.current.date(bySettingHour: 21, minute: 0, second: 0, of: Date()) ?? Date()
+    }
+
+    init(selectedTime: Binding<Date?>, animateIn: Bool = true) {
+        _selectedTime = selectedTime
+        self.animateIn = animateIn
+        _textIn = State(initialValue: !animateIn)
     }
 
     var body: some View {
@@ -43,7 +50,10 @@ struct OnboardingReminderPage: View {
             Spacer()
         }
         .frame(maxWidth: .infinity)
-        .onAppear { textIn = true }
+        .onAppear {
+            guard animateIn else { return }
+            textIn = true
+        }
         .sheet(isPresented: $showPicker) {
             TimePickerSheet(
                 draftTime: $draftTime,
@@ -150,7 +160,7 @@ private struct TimePickerSheet: View {
 
 #Preview {
     StatefulPreviewWrapper(Date?.none) { binding in
-        OnboardingReminderPage(selectedTime: binding)
+        OnboardingReminderPage(selectedTime: binding, animateIn: true)
             .background(PaletteTheme.background)
     }
 }

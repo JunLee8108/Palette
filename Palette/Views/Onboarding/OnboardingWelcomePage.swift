@@ -2,14 +2,22 @@ import SwiftUI
 import PaletteShared
 
 struct OnboardingWelcomePage: View {
-    @State private var tilesIn: Bool = false
-    @State private var textIn: Bool = false
+    var animateIn: Bool
+
+    @State private var tilesIn: Bool
+    @State private var textIn: Bool
 
     private let heroColors: [Color] = [
         Color(hex: "#E8594A"),
         Color(hex: "#F4A74C"),
         Color(hex: "#2E6B9E")
     ]
+
+    init(animateIn: Bool = true) {
+        self.animateIn = animateIn
+        _tilesIn = State(initialValue: !animateIn)
+        _textIn = State(initialValue: !animateIn)
+    }
 
     var body: some View {
         VStack(spacing: 56) {
@@ -54,6 +62,7 @@ struct OnboardingWelcomePage: View {
         }
         .frame(maxWidth: .infinity)
         .onAppear {
+            guard animateIn else { return }
             tilesIn = true
             textIn = true
         }

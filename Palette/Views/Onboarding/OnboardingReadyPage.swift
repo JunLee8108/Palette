@@ -3,9 +3,17 @@ import PaletteShared
 
 struct OnboardingReadyPage: View {
     var username: String = ""
+    var animateIn: Bool
 
-    @State private var tileIn: Bool = false
-    @State private var textIn: Bool = false
+    @State private var tileIn: Bool
+    @State private var textIn: Bool
+
+    init(username: String = "", animateIn: Bool = true) {
+        self.username = username
+        self.animateIn = animateIn
+        _tileIn = State(initialValue: !animateIn)
+        _textIn = State(initialValue: !animateIn)
+    }
 
     private var heading: String {
         if username.isEmpty {
@@ -50,6 +58,7 @@ struct OnboardingReadyPage: View {
         }
         .frame(maxWidth: .infinity)
         .onAppear {
+            guard animateIn else { return }
             tileIn = true
             textIn = true
         }
