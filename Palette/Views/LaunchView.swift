@@ -17,7 +17,14 @@ struct LaunchView: View {
         Color(hex: "#2A2824"), Color(hex: "#6FB3D2"), Color(hex: "#A04A5C")
     ]
 
-    private let sequence: [Int] = [4, 1, 3, 5, 7, 0, 2, 6, 8]
+    private static let revealStep: [Int] = {
+        let sequence = [4, 1, 3, 5, 7, 0, 2, 6, 8]
+        var positions = Array(repeating: 0, count: sequence.count)
+        for (step, idx) in sequence.enumerated() {
+            positions[idx] = step
+        }
+        return positions
+    }()
 
     var body: some View {
         ZStack {
@@ -61,7 +68,7 @@ struct LaunchView: View {
                 HStack(spacing: spacing) {
                     ForEach(0..<3, id: \.self) { col in
                         let index = row * 3 + col
-                        let revealOrder = sequence.firstIndex(of: index) ?? 0
+                        let revealOrder = Self.revealStep[index]
                         let isVisible = tileProgress > revealOrder
 
                         ColorTile(color: tileColors[index], size: tileSize)
@@ -79,7 +86,7 @@ struct LaunchView: View {
 
     private func runIntro() async {
         try? await Task.sleep(nanoseconds: 180_000_000)
-        for i in 0..<sequence.count {
+        for i in 0..<Self.revealStep.count {
             tileProgress = i + 1
             try? await Task.sleep(nanoseconds: 90_000_000)
         }
