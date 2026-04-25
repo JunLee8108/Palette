@@ -12,7 +12,7 @@ struct GridCell: View {
     var body: some View {
         ZStack {
             if let hex = colorHex {
-                ColorTile(color: Color(hex: hex), size: size)
+                ColorTile(color: Color(hex: hex), size: size, flat: true)
             } else if isInYear {
                 emptySlot
 

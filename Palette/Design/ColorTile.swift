@@ -6,6 +6,7 @@ struct ColorTile: View {
     var size: CGFloat = 64
     var isSelected: Bool = false
     var isEmpty: Bool = false
+    var flat: Bool = false
 
     private var radius: CGFloat { size * 0.22 }
 
@@ -57,7 +58,7 @@ struct ColorTile: View {
             }
         }
         .frame(width: size, height: size)
-        .shadow(color: isEmpty ? .clear : .black.opacity(0.08), radius: 4, y: 2)
+        .shadow(color: (isEmpty || flat) ? .clear : .black.opacity(0.08), radius: 4, y: 2)
     }
 }
 
@@ -65,15 +66,21 @@ struct PressableTile: View {
     let color: Color
     var size: CGFloat = 64
     var isSelected: Bool = false
+    var flat: Bool = false
     var action: () -> Void = {}
 
     @State private var isPressed: Bool = false
 
     var body: some View {
-        ColorTile(color: color, size: size, isSelected: isSelected)
+        ColorTile(color: color, size: size, isSelected: isSelected, flat: flat)
             .scaleEffect(isPressed ? 0.92 : 1.0)
-            .shadow(color: isPressed ? .black.opacity(0.04) : .black.opacity(0.08),
-                    radius: isPressed ? 2 : 4, y: isPressed ? 1 : 2)
+            .shadow(
+                color: flat
+                    ? .clear
+                    : (isPressed ? .black.opacity(0.04) : .black.opacity(0.08)),
+                radius: isPressed ? 2 : 4,
+                y: isPressed ? 1 : 2
+            )
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
             .onTapGesture { action() }
             .simultaneousGesture(
