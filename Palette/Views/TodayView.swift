@@ -77,8 +77,9 @@ struct TodayView: View {
                 Spacer()
             }
             topBar
+            bottomQuote
         }
-        .padding(.bottom, 50)
+        .padding(.bottom, 28)
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }
@@ -178,6 +179,15 @@ struct TodayView: View {
             .padding(.top, 4)
 
             Spacer()
+        }
+    }
+
+    // MARK: Bottom quote
+
+    private var bottomQuote: some View {
+        VStack {
+            Spacer()
+            TodayQuoteView()
         }
     }
 
