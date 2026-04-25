@@ -81,10 +81,10 @@ struct OnboardingGridPage: View {
                         ZStack {
                             RoundedRectangle(cornerRadius: tileSize * 0.22)
                                 .strokeBorder(PaletteTheme.tertiaryText.opacity(0.25), lineWidth: 0.5)
-                                .frame(width: tileSize, height: tileSize)
 
                             if isVisible {
-                                ColorTile(color: color, size: tileSize)
+                                RoundedRectangle(cornerRadius: tileSize * 0.22)
+                                    .fill(color)
                                     .transition(.scale(scale: 0.3).combined(with: .opacity))
                             }
                         }
