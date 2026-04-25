@@ -100,27 +100,16 @@ struct TodayView: View {
 
     private var previewButton: some View {
         Button(action: { showPalette = true }) {
-            VStack(spacing: 12) {
-                ZStack {
-                    if let color = previewColor {
-                        ColorTile(color: color, size: 168)
-                            .scaleEffect(animatingFill ? 1.05 : 1.0)
-                            .animation(.spring(response: 0.55, dampingFraction: 0.65), value: animatingFill)
-                    } else {
-                        ColorTile(color: .clear, size: 168, isEmpty: true)
-                    }
-                }
-                .frame(height: 168)
-
-                if todayEntry != nil {
-                    Text(L10n.t("Change", "변경"))
-                        .font(.system(size: 11, weight: .semibold))
-                        .tracking(1.5)
-                        .foregroundStyle(PaletteTheme.tertiaryText)
-                        .textCase(.uppercase)
-                        .transition(.opacity)
+            ZStack {
+                if let color = previewColor {
+                    ColorTile(color: color, size: 168)
+                        .scaleEffect(animatingFill ? 1.05 : 1.0)
+                        .animation(.spring(response: 0.55, dampingFraction: 0.65), value: animatingFill)
+                } else {
+                    ColorTile(color: .clear, size: 168, isEmpty: true)
                 }
             }
+            .frame(height: 168)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
