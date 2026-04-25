@@ -2,11 +2,18 @@ import SwiftUI
 
 struct OnboardingUsernamePage: View {
     @Binding var username: String
+    var animateIn: Bool
 
     @FocusState private var isFocused: Bool
-    @State private var textIn: Bool = false
+    @State private var textIn: Bool
 
     static let maxLength: Int = 20
+
+    init(username: Binding<String>, animateIn: Bool = true) {
+        _username = username
+        self.animateIn = animateIn
+        _textIn = State(initialValue: !animateIn)
+    }
 
     var body: some View {
         VStack(spacing: 44) {
@@ -84,13 +91,16 @@ struct OnboardingUsernamePage: View {
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
         .onTapGesture { isFocused = false }
-        .onAppear { textIn = true }
+        .onAppear {
+            guard animateIn else { return }
+            textIn = true
+        }
     }
 }
 
 #Preview {
     StatefulPreviewWrapper("") { binding in
-        OnboardingUsernamePage(username: binding)
+        OnboardingUsernamePage(username: binding, animateIn: true)
             .background(PaletteTheme.background)
     }
 }
