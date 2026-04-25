@@ -9,6 +9,8 @@ private enum ExportPalette {
     static let tertiary = Color(hex: "#B8B2A7")
     static let emptyFill = Color(hex: "#E8E0D0").opacity(0.6)
     static let stripeEmpty = Color(hex: "#E8E0D0")
+    static let cardSurface = Color(hex: "#F5F2EB")
+    static let cardBorder = Color(hex: "#E8E0D0")
 }
 
 // MARK: - Top-level canvas
@@ -41,6 +43,10 @@ struct ExportCanvas: View {
                 .padding(.vertical, 48)
         case (.stripes, _):
             StripesLayout(options: options, data: data)
+        case (.swatch, _):
+            SwatchWeekLayout(options: options, data: data)
+                .padding(.horizontal, 80)
+                .padding(.vertical, 96)
         }
     }
 }
@@ -94,6 +100,88 @@ struct GridWeekLayout: View {
             if options.showDayCount || options.showWatermark {
                 ExportFooter(options: options, data: data)
                     .padding(.top, 32)
+            }
+        }
+    }
+}
+
+// MARK: - Swatch Week (gallery card)
+
+struct SwatchWeekLayout: View {
+    let options: ExportOptions
+    let data: ExportData
+
+    private var stripeColors: [Color] {
+        data.dates.map { date in
+            if let hex = data.colorsByKey[DayKey.make(for: date)] {
+                return Color(hex: hex)
+            }
+            return ExportPalette.stripeEmpty
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 36) {
+            Spacer(minLength: 0)
+            card
+                .aspectRatio(1.85, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+            if options.showWatermark {
+                Text("palette")
+                    .font(.system(size: 22, weight: .regular, design: .serif))
+                    .tracking(1.4)
+                    .foregroundStyle(ExportPalette.tertiary)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var card: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 16) {
+                ForEach(Array(stripeColors.enumerated()), id: \.offset) { _, color in
+                    RoundedRectangle(cornerRadius: 18)
+                        .fill(color)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .padding(.horizontal, 64)
+            .padding(.top, 64)
+            .padding(.bottom, options.showHeader || options.showDayCount ? 36 : 64)
+
+            if options.showHeader || options.showDayCount {
+                cardFooter
+                    .padding(.horizontal, 64)
+                    .padding(.bottom, 56)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 36)
+                .fill(ExportPalette.cardSurface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 36)
+                .strokeBorder(ExportPalette.cardBorder, lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.06), radius: 24, y: 12)
+    }
+
+    private var cardFooter: some View {
+        HStack(alignment: .firstTextBaseline) {
+            if options.showHeader {
+                Text(ExportText.header(for: options))
+                    .font(.system(size: 22, weight: .semibold, design: .serif))
+                    .tracking(1.4)
+                    .foregroundStyle(ExportPalette.primary)
+            }
+            Spacer(minLength: 24)
+            if options.showDayCount {
+                Text(ExportText.dayCount(filled: data.filledCount, total: 7))
+                    .font(.system(size: 18, weight: .medium))
+                    .monospacedDigit()
+                    .tracking(0.6)
+                    .foregroundStyle(ExportPalette.secondary)
             }
         }
     }

@@ -8,9 +8,15 @@ import UIKit
 // MARK: - Enums
 
 enum ExportStyle: String, CaseIterable, Identifiable {
-    case grid, stripes
+    case grid, stripes, swatch
     var id: String { rawValue }
-    var label: String { self == .grid ? "Grid" : "Stripes" }
+    var label: String {
+        switch self {
+        case .grid: return "Grid"
+        case .stripes: return "Stripes"
+        case .swatch: return "Swatch"
+        }
+    }
 }
 
 enum ExportScope: String, CaseIterable, Identifiable {
