@@ -5,6 +5,8 @@ import PaletteShared
 struct RootView: View {
     @Query(sort: \ColorEntry.date) private var allEntries: [ColorEntry]
 
+    @AppStorage("palette.hasDiscoveredGallery") private var discoveredGallery: Bool = false
+
     @State private var scrollId: Int? = 0
     @State private var selectedDay: SelectedDay? = nil
     @State private var weekScrollTick: Int = 0
@@ -141,6 +143,23 @@ struct RootView: View {
 
                 pageIndicator
                     .padding(.top, 8)
+
+                if currentTab == 0 && !discoveredGallery {
+                    HStack {
+                        Spacer()
+                        SwipeHintView()
+                            .padding(.trailing, 16)
+                    }
+                    .frame(maxHeight: .infinity)
+                    .transition(.opacity)
+                    .allowsHitTesting(false)
+                }
+            }
+        }
+        .onChange(of: scrollId) { _, newValue in
+            guard let newValue, newValue > 0, !discoveredGallery else { return }
+            withAnimation(.easeInOut(duration: 0.4)) {
+                discoveredGallery = true
             }
         }
         .background(PaletteTheme.background.ignoresSafeArea())
