@@ -11,6 +11,7 @@ struct SettingsView: View {
 
     @State private var showTimePicker: Bool = false
     @State private var draftTime: Date = Date()
+    @State private var showOpenSettingsAlert: Bool = false
 
     #if DEBUG
     @State private var iconPNGURL: URL? = nil
@@ -28,8 +29,13 @@ struct SettingsView: View {
                         }
 
                         section(title: L10n.t("Reminder", "알림")) {
-                            reminderRow
+                            reminderToggleRow
+                            if reminderTimeInterval > 0 {
+                                reminderTimeRow
+                                    .transition(.opacity)
+                            }
                         }
+                        .animation(.easeInOut(duration: 0.25), value: reminderTimeInterval > 0)
 
                         section(title: L10n.t("About", "정보")) {
                             infoRow(
@@ -81,9 +87,29 @@ struct SettingsView: View {
             .presentationDragIndicator(.visible)
             .presentationBackground(PaletteTheme.background)
         }
+        .alert(
+            L10n.t("Notifications are off", "알림이 꺼져 있어요"),
+            isPresented: $showOpenSettingsAlert
+        ) {
+            Button(L10n.t("Cancel", "취소"), role: .cancel) {}
+            Button(L10n.t("Open Settings", "설정 열기")) { openAppSettings() }
+        } message: {
+            Text(L10n.t(
+                "Enable notifications in Settings to receive the daily reminder.",
+                "설정에서 알림을 허용하면 매일 알림을 받을 수 있어요."
+            ))
+        }
         .onAppear {
             draftName = storedUsername
             draftTime = currentReminderTime ?? defaultReminderTime()
+
+            Task {
+                let status = await NotificationManager.shared.authorizationStatus()
+                if status == .denied, reminderTimeInterval > 0 {
+                    NotificationManager.shared.cancelDailyReminder()
+                    await MainActor.run { reminderTimeInterval = 0 }
+                }
+            }
         }
     }
 
@@ -132,7 +158,40 @@ struct SettingsView: View {
         .onTapGesture { nameFocused = true }
     }
 
-    private var reminderRow: some View {
+    private var reminderToggleRow: some View {
+        HStack(spacing: 12) {
+            Text(L10n.t("Daily reminder", "매일 알림"))
+                .font(.system(size: 15, weight: .regular))
+                .foregroundStyle(PaletteTheme.secondaryText)
+
+            Spacer()
+
+            Toggle("", isOn: Binding(
+                get: { reminderTimeInterval > 0 },
+                set: { _ in
+                    if reminderTimeInterval > 0 {
+                        handleDisableReminder()
+                    } else {
+                        Task { await handleEnableReminder() }
+                    }
+                }
+            ))
+            .labelsHidden()
+            .tint(PaletteTheme.primaryText)
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(PaletteTheme.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
+        )
+    }
+
+    private var reminderTimeRow: some View {
         Button {
             nameFocused = false
             commitName()
@@ -140,7 +199,7 @@ struct SettingsView: View {
             showTimePicker = true
         } label: {
             HStack(spacing: 12) {
-                Text(L10n.t("Daily time", "매일 알림 시간"))
+                Text(L10n.t("Time", "시간"))
                     .font(.system(size: 15, weight: .regular))
                     .foregroundStyle(PaletteTheme.secondaryText)
 
@@ -151,10 +210,6 @@ struct SettingsView: View {
                         .font(.system(size: 16, weight: .regular))
                         .foregroundStyle(PaletteTheme.primaryText)
                         .monospacedDigit()
-                } else {
-                    Text(L10n.t("Not set", "미설정"))
-                        .font(.system(size: 16, weight: .regular))
-                        .foregroundStyle(PaletteTheme.tertiaryText)
                 }
 
                 Image(systemName: "chevron.right")
@@ -299,6 +354,44 @@ struct SettingsView: View {
         let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
         let b = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
         return "\(v) (\(b))"
+    }
+
+    // MARK: Reminder toggle actions
+
+    private func handleEnableReminder() async {
+        let status = await NotificationManager.shared.authorizationStatus()
+        switch status {
+        case .notDetermined:
+            let granted = await NotificationManager.shared.requestAuthorization()
+            if granted {
+                await MainActor.run {
+                    draftTime = currentReminderTime ?? defaultReminderTime()
+                    showTimePicker = true
+                }
+            }
+        case .denied:
+            await MainActor.run { showOpenSettingsAlert = true }
+        case .authorized, .provisional, .ephemeral:
+            await MainActor.run {
+                draftTime = currentReminderTime ?? defaultReminderTime()
+                showTimePicker = true
+            }
+        @unknown default:
+            break
+        }
+    }
+
+    private func handleDisableReminder() {
+        NotificationManager.shared.cancelDailyReminder()
+        reminderTimeInterval = 0
+    }
+
+    private func openAppSettings() {
+        #if canImport(UIKit)
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
+        #endif
     }
 }
 
