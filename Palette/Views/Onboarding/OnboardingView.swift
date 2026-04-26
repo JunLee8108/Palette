@@ -9,6 +9,8 @@ struct OnboardingView: View {
     @State private var username: String = ""
     @State private var reminderTime: Date? = nil
 
+    @FocusState private var nameFieldFocused: Bool
+
     private let totalPages: Int = 5
 
     var body: some View {
@@ -55,8 +57,12 @@ struct OnboardingView: View {
                 OnboardingGridPage(animateIn: animateNextPage)
                     .transition(.opacity)
             case 2:
-                OnboardingUsernamePage(username: $username, animateIn: animateNextPage)
-                    .transition(.opacity)
+                OnboardingUsernamePage(
+                    username: $username,
+                    isFocused: $nameFieldFocused,
+                    animateIn: animateNextPage
+                )
+                .transition(.opacity)
             case 3:
                 OnboardingReminderPage(selectedTime: $reminderTime, animateIn: animateNextPage)
                     .transition(.opacity)
@@ -133,7 +139,9 @@ struct OnboardingView: View {
         case 2:
             UserDefaults.standard.set(trimmedUsername, forKey: "palette.username")
             username = trimmedUsername
-            navigateForward(to: 3)
+            dismissFocusThenNavigate {
+                navigateForward(to: 3)
+            }
         case 3:
             Task {
                 if let time = reminderTime {
@@ -161,7 +169,22 @@ struct OnboardingView: View {
     private func goBack() {
         guard pageIndex > 0 else { return }
         animateNextPage = false
-        withAnimation { pageIndex -= 1 }
+        let target = pageIndex - 1
+        dismissFocusThenNavigate {
+            withAnimation { pageIndex = target }
+        }
+    }
+
+    private func dismissFocusThenNavigate(_ navigate: @escaping () -> Void) {
+        if nameFieldFocused {
+            nameFieldFocused = false
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 280_000_000)
+                navigate()
+            }
+        } else {
+            navigate()
+        }
     }
 }
 
