@@ -5,6 +5,7 @@ struct SettingsView: View {
 
     @AppStorage("palette.username") private var storedUsername: String = ""
     @AppStorage("palette.reminderTime") private var reminderTimeInterval: Double = 0
+    @AppStorage("palette.appearance") private var appearanceRaw: String = AppearanceMode.system.rawValue
 
     @State private var draftName: String = ""
     @FocusState private var nameFocused: Bool
@@ -26,6 +27,10 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 36) {
                         section(title: L10n.t("Profile", "프로필")) {
                             nameRow
+                        }
+
+                        section(title: L10n.t("Appearance", "외관")) {
+                            appearanceRow
                         }
 
                         section(title: L10n.t("Reminder", "알림")) {
@@ -156,6 +161,19 @@ struct SettingsView: View {
         )
         .contentShape(Rectangle())
         .onTapGesture { nameFocused = true }
+    }
+
+    private var appearanceRow: some View {
+        let binding = Binding<AppearanceMode>(
+            get: { AppearanceMode(rawValue: appearanceRaw) ?? .system },
+            set: { appearanceRaw = $0.rawValue }
+        )
+        return Picker("", selection: binding) {
+            ForEach(AppearanceMode.allCases) { mode in
+                Text(mode.label).tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
     }
 
     private var reminderToggleRow: some View {
