@@ -162,6 +162,7 @@ struct DayDetailSheet: View {
         if canPick {
             Button(action: handlePickTap) {
                 tileVisual
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(pickLabel)
