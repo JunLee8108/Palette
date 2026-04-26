@@ -131,18 +131,23 @@ struct YearlyBoardView: View {
             ) ?? Date()
             let key = DayKey.make(for: date)
             let entry = entriesByKey[key]
+            let isToday = key == todayKey
+            let hasEntry = entry != nil
 
-            Button {
-                onSelectDate(date)
-            } label: {
-                GridCell(
-                    size: size,
-                    colorHex: entry?.colorHex,
-                    isToday: key == todayKey,
-                    isInYear: true
-                )
-            }
-            .buttonStyle(.plain)
+            GridCell(
+                size: size,
+                colorHex: entry?.colorHex,
+                isToday: isToday,
+                isInYear: true
+            )
+            .contentShape(Rectangle())
+            .onTapGesture { onSelectDate(date) }
+            .accessibilityElement()
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(CellAccessibility.label(date: date, isToday: isToday))
+            .accessibilityValue(CellAccessibility.value(hasEntry: hasEntry))
+            .accessibilityHint(CellAccessibility.hint(date: date, hasEntry: hasEntry))
+            .accessibilityAction(.default) { onSelectDate(date) }
         }
     }
 }
