@@ -4,6 +4,8 @@ import PaletteShared
 
 @main
 struct PaletteApp: App {
+    @AppStorage("palette.appearance") private var appearanceRaw: String = AppearanceMode.system.rawValue
+
     var sharedModelContainer: ModelContainer = {
         do {
             return try SharedModelContainer.make()
@@ -12,10 +14,14 @@ struct PaletteApp: App {
         }
     }()
 
+    private var appearance: AppearanceMode {
+        AppearanceMode(rawValue: appearanceRaw) ?? .system
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .preferredColorScheme(.light)
+                .preferredColorScheme(appearance.colorScheme)
                 .tint(PaletteTheme.primaryText)
         }
         .modelContainer(sharedModelContainer)
