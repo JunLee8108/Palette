@@ -78,6 +78,7 @@ struct SettingsView: View {
             .toolbarBackground(PaletteTheme.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
         }
+        .preferredColorScheme(currentAppearance.colorScheme)
         .sheet(isPresented: $showTimePicker) {
             TimePickerSheet(
                 draftTime: $draftTime,
@@ -345,6 +346,10 @@ struct SettingsView: View {
     }
 
     // MARK: Helpers
+
+    private var currentAppearance: AppearanceMode {
+        AppearanceMode(rawValue: appearanceRaw) ?? .system
+    }
 
     private func commitName() {
         let trimmed = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
