@@ -109,17 +109,22 @@ struct WeeklyBoardView: View {
         if let date {
             let key = DayKey.make(for: date)
             let entry = entriesByKey[key]
-            Button {
-                onSelectDate(date)
-            } label: {
-                GridCell(
-                    size: size,
-                    colorHex: entry?.colorHex,
-                    isToday: key == todayKey,
-                    isInYear: true
-                )
-            }
-            .buttonStyle(.plain)
+            let isToday = key == todayKey
+            let hasEntry = entry != nil
+            GridCell(
+                size: size,
+                colorHex: entry?.colorHex,
+                isToday: isToday,
+                isInYear: true
+            )
+            .contentShape(Rectangle())
+            .onTapGesture { onSelectDate(date) }
+            .accessibilityElement()
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(CellAccessibility.label(date: date, isToday: isToday))
+            .accessibilityValue(CellAccessibility.value(hasEntry: hasEntry))
+            .accessibilityHint(CellAccessibility.hint(date: date, hasEntry: hasEntry))
+            .accessibilityAction(.default) { onSelectDate(date) }
         } else {
             Color.clear.frame(width: size, height: size)
         }
