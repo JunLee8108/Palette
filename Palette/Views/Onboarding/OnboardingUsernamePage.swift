@@ -2,15 +2,20 @@ import SwiftUI
 
 struct OnboardingUsernamePage: View {
     @Binding var username: String
+    @FocusState.Binding var isFocused: Bool
     var animateIn: Bool
 
-    @FocusState private var isFocused: Bool
     @State private var textIn: Bool
 
     static let maxLength: Int = 20
 
-    init(username: Binding<String>, animateIn: Bool = true) {
+    init(
+        username: Binding<String>,
+        isFocused: FocusState<Bool>.Binding,
+        animateIn: Bool = true
+    ) {
         _username = username
+        _isFocused = isFocused
         self.animateIn = animateIn
         _textIn = State(initialValue: !animateIn)
     }
@@ -99,18 +104,15 @@ struct OnboardingUsernamePage: View {
 }
 
 #Preview {
-    StatefulPreviewWrapper("") { binding in
-        OnboardingUsernamePage(username: binding, animateIn: true)
-            .background(PaletteTheme.background)
-    }
+    UsernamePagePreview()
 }
 
-private struct StatefulPreviewWrapper<Value, Content: View>: View {
-    @State private var value: Value
-    let content: (Binding<Value>) -> Content
-    init(_ initial: Value, @ViewBuilder content: @escaping (Binding<Value>) -> Content) {
-        _value = State(initialValue: initial)
-        self.content = content
+private struct UsernamePagePreview: View {
+    @State private var name: String = ""
+    @FocusState private var focus: Bool
+
+    var body: some View {
+        OnboardingUsernamePage(username: $name, isFocused: $focus, animateIn: true)
+            .background(PaletteTheme.background)
     }
-    var body: some View { content($value) }
 }
