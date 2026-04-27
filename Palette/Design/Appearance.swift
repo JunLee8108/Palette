@@ -55,7 +55,17 @@ extension AppearanceMode {
             guard let windowScene = scene as? UIWindowScene else { continue }
             for window in windowScene.windows {
                 window.overrideUserInterfaceStyle = style
+                Self.applyStyleToPresentationChain(style, from: window.rootViewController)
             }
+        }
+    }
+
+    private static func applyStyleToPresentationChain(_ style: UIUserInterfaceStyle,
+                                                      from vc: UIViewController?) {
+        var current = vc
+        while let c = current {
+            c.overrideUserInterfaceStyle = style
+            current = c.presentedViewController
         }
     }
 }
