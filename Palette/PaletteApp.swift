@@ -21,8 +21,10 @@ struct PaletteApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .preferredColorScheme(appearance.colorScheme)
                 .tint(PaletteTheme.primaryText)
+                #if canImport(UIKit)
+                .onAppear { appearance.applyToWindows() }
+                #endif
         }
         .modelContainer(sharedModelContainer)
     }

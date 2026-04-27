@@ -78,7 +78,6 @@ struct SettingsView: View {
             .toolbarBackground(PaletteTheme.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
         }
-        .preferredColorScheme(currentAppearance.colorScheme)
         .sheet(isPresented: $showTimePicker) {
             TimePickerSheet(
                 draftTime: $draftTime,
