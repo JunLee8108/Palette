@@ -1,7 +1,7 @@
 import Foundation
 import PaletteShared
 
-enum SwatchMatcher {
+nonisolated enum SwatchMatcher {
     static func top(
         _ k: Int,
         from buckets: [ColorExtractor.Bucket],

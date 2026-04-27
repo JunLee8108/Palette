@@ -5,7 +5,7 @@ import CoreGraphics
 import UIKit
 #endif
 
-enum ColorExtractor {
+nonisolated enum ColorExtractor {
     struct Bucket: Sendable {
         let r: UInt8
         let g: UInt8
