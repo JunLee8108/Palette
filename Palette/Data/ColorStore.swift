@@ -58,23 +58,6 @@ enum ColorStore {
         WidgetCenter.shared.reloadAllTimelines()
     }
 
-    @discardableResult
-    static func updateNote(
-        _ note: String,
-        for date: Date,
-        in context: ModelContext
-    ) -> ColorEntry? {
-        guard let existing = entry(for: date, in: context) else { return nil }
-        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard existing.note != trimmed else { return existing }
-        existing.note = trimmed
-        existing.updatedAt = Date()
-        try? context.save()
-        return existing
-    }
-
-    static let noteMaxLength: Int = 180
-
     static func deleteToday(in context: ModelContext) {
         delete(for: Date(), in: context)
     }
