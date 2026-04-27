@@ -1,6 +1,10 @@
 import SwiftUI
 import SwiftData
+import PhotosUI
 import PaletteShared
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct DayDetailSheet: View {
     let date: Date
@@ -16,8 +20,12 @@ struct DayDetailSheet: View {
     @State private var pendingColorHex: String? = nil
     @State private var showChangeWarning: Bool = false
     @State private var showClearWarning: Bool = false
+    @State private var photoSelection: PhotosPickerItem? = nil
+    @State private var photoImage: UIImage? = nil
+    @State private var candidateSwatches: [PaletteSwatch] = []
+    @State private var photoLoadFailed: Bool = false
 
-    private enum Page { case detail, palette }
+    private enum Page { case detail, palette, preview }
 
     private static let tileSize: CGFloat = 120
 
@@ -87,6 +95,8 @@ struct DayDetailSheet: View {
                 detailContent.transition(.opacity)
             case .palette:
                 paletteContent.transition(.opacity)
+            case .preview:
+                previewContent.transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -95,6 +105,10 @@ struct DayDetailSheet: View {
         .presentationDragIndicator(.visible)
         .presentationBackground(PaletteTheme.background)
         .sensoryFeedback(.impact(weight: .medium), trigger: selectedSwatchId)
+        .onChange(of: photoSelection) { _, newItem in
+            guard let newItem else { return }
+            Task { await processPhoto(item: newItem) }
+        }
         .alert(
             L10n.t("Change this day's color?", "이 날의 색을 바꾸시겠어요?"),
             isPresented: $showChangeWarning
@@ -275,8 +289,39 @@ struct DayDetailSheet: View {
             )
             .padding(.horizontal, 28)
 
-            Spacer(minLength: 24)
+            photoEntryLink
+
+            Spacer(minLength: 16)
         }
+    }
+
+    private var photoEntryLink: some View {
+        PhotosPicker(
+            selection: $photoSelection,
+            matching: .images,
+            photoLibrary: .shared()
+        ) {
+            captionLabel(L10n.t("From a photo", "사진에서"))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func captionLabel(_ text: String) -> some View {
+        HStack(spacing: 12) {
+            Rectangle()
+                .fill(PaletteTheme.hairline)
+                .frame(width: 32, height: 1)
+            Text(text)
+                .font(.system(size: 12, weight: .regular))
+                .tracking(0.6)
+                .textCase(.uppercase)
+                .foregroundStyle(PaletteTheme.tertiaryText)
+            Rectangle()
+                .fill(PaletteTheme.hairline)
+                .frame(width: 32, height: 1)
+        }
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
     }
 
     private var paletteHeader: some View {
@@ -303,6 +348,133 @@ struct DayDetailSheet: View {
         }
         .padding(.horizontal, 24)
         .padding(.top, 16)
+    }
+
+    // MARK: - Preview page
+
+    private var previewContent: some View {
+        VStack(spacing: 0) {
+            previewHeader
+
+            Spacer().frame(height: 28)
+
+            photoThumb
+
+            Spacer().frame(height: 28)
+
+            candidatesRow
+
+            Spacer().frame(height: 28)
+
+            rePickPhotoLink
+
+            Spacer(minLength: 24)
+        }
+    }
+
+    private var previewHeader: some View {
+        HStack {
+            Button(action: closePreview) {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(L10n.t("Back", "뒤로"))
+                        .font(.system(size: 14, weight: .regular))
+                }
+                .foregroundStyle(PaletteTheme.secondaryText)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            Text(shortDateFormatter.string(from: date))
+                .font(.system(size: 13, weight: .medium))
+                .tracking(0.5)
+                .foregroundStyle(PaletteTheme.tertiaryText)
+                .textCase(.uppercase)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 16)
+    }
+
+    @ViewBuilder
+    private var photoThumb: some View {
+        if let image = photoImage {
+            Image(uiImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 80, height: 80)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
+        } else {
+            RoundedRectangle(cornerRadius: 14)
+                .fill(PaletteTheme.surface)
+                .frame(width: 80, height: 80)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
+                )
+        }
+    }
+
+    private var candidatesRow: some View {
+        HStack(spacing: 16) {
+            ForEach(0..<3, id: \.self) { index in
+                if index < candidateSwatches.count {
+                    let swatch = candidateSwatches[index]
+                    PressableTile(
+                        color: swatch.color,
+                        size: 72,
+                        isSelected: selectedSwatchId == swatch.id,
+                        action: { handleSelect(swatch) }
+                    )
+                } else {
+                    placeholderTile
+                }
+            }
+        }
+    }
+
+    private var placeholderTile: some View {
+        RoundedRectangle(cornerRadius: 72 * 0.22)
+            .fill(PaletteTheme.surface)
+            .frame(width: 72, height: 72)
+            .overlay(
+                RoundedRectangle(cornerRadius: 72 * 0.22)
+                    .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
+            )
+    }
+
+    @ViewBuilder
+    private var rePickPhotoLink: some View {
+        if photoLoadFailed {
+            PhotosPicker(
+                selection: $photoSelection,
+                matching: .images,
+                photoLibrary: .shared()
+            ) {
+                Text(L10n.t("Couldn't read · Try another", "읽지 못했어요 · 다른 사진"))
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(PaletteTheme.secondaryText)
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else {
+            PhotosPicker(
+                selection: $photoSelection,
+                matching: .images,
+                photoLibrary: .shared()
+            ) {
+                captionLabel(L10n.t("Another photo", "다른 사진"))
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     // MARK: - Actions
@@ -335,6 +507,48 @@ struct DayDetailSheet: View {
             detent = .height(detailHeight)
             page = .detail
         }
+    }
+
+    private func closePreview() {
+        photoImage = nil
+        candidateSwatches = []
+        photoLoadFailed = false
+        withAnimation(.easeInOut(duration: 0.3)) {
+            detent = .large
+            page = .palette
+        }
+    }
+
+    @MainActor
+    private func processPhoto(item: PhotosPickerItem) async {
+        photoLoadFailed = false
+        if page != .preview {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                detent = .large
+                page = .preview
+            }
+        } else {
+            photoImage = nil
+            candidateSwatches = []
+        }
+
+        guard let data = try? await item.loadTransferable(type: Data.self) else {
+            photoSelection = nil
+            photoLoadFailed = true
+            return
+        }
+
+        photoImage = UIImage(data: data)
+
+        let buckets = await ColorExtractor.extract(from: data)
+        let matches = SwatchMatcher.top(3, from: buckets, in: DefaultPalette.swatches)
+
+        withAnimation(.easeInOut(duration: 0.2)) {
+            candidateSwatches = matches
+        }
+
+        if matches.isEmpty { photoLoadFailed = true }
+        photoSelection = nil
     }
 
     private func clearEntry() {
