@@ -167,7 +167,12 @@ struct SettingsView: View {
     private var appearanceRow: some View {
         let binding = Binding<AppearanceMode>(
             get: { AppearanceMode(rawValue: appearanceRaw) ?? .system },
-            set: { appearanceRaw = $0.rawValue }
+            set: { newValue in
+                appearanceRaw = newValue.rawValue
+                #if canImport(UIKit)
+                newValue.applyToWindows()
+                #endif
+            }
         )
         return Picker("", selection: binding) {
             ForEach(AppearanceMode.allCases) { mode in

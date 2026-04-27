@@ -38,3 +38,25 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
         }
     }
 }
+
+#if canImport(UIKit)
+extension AppearanceMode {
+    var uiStyle: UIUserInterfaceStyle {
+        switch self {
+        case .system: return .unspecified
+        case .light:  return .light
+        case .dark:   return .dark
+        }
+    }
+
+    func applyToWindows() {
+        let style = uiStyle
+        for scene in UIApplication.shared.connectedScenes {
+            guard let windowScene = scene as? UIWindowScene else { continue }
+            for window in windowScene.windows {
+                window.overrideUserInterfaceStyle = style
+            }
+        }
+    }
+}
+#endif
