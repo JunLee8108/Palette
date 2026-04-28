@@ -27,8 +27,6 @@ struct DayDetailSheet: View {
     @State private var showFullPhoto: Bool = false
     @State private var thumbFrame: CGRect = .zero
 
-    @Namespace private var photoNamespace
-
     private enum Page { case detail, palette, preview }
 
     private static let tileSize: CGFloat = 120
@@ -97,31 +95,17 @@ struct DayDetailSheet: View {
 
     var body: some View {
         ZStack {
-            ZStack {
-                switch page {
-                case .detail:
-                    detailContent.transition(.opacity)
-                case .palette:
-                    paletteContent.transition(.opacity)
-                case .preview:
-                    previewContent.transition(.opacity)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .animation(.easeInOut(duration: 0.25), value: page)
-
-            if showFullPhoto, let image = photoImage {
-                PhotoFullScreenView(
-                    image: image,
-                    namespace: photoNamespace,
-                    isPresented: showFullPhoto,
-                    onClose: closeFullPhoto
-                )
-                .ignoresSafeArea()
-                .zIndex(2)
-                .transition(.identity)
+            switch page {
+            case .detail:
+                detailContent.transition(.opacity)
+            case .palette:
+                paletteContent.transition(.opacity)
+            case .preview:
+                previewContent.transition(.opacity)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(.easeInOut(duration: 0.25), value: page)
         .presentationDetents([.height(detailHeight), .large], selection: $detent)
         .presentationDragIndicator(showFullPhoto ? .hidden : .visible)
         .presentationBackground(PaletteTheme.background)
@@ -436,11 +420,6 @@ struct DayDetailSheet: View {
                 .aspectRatio(contentMode: .fill)
                 .frame(width: 80, height: 80)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                .matchedGeometryEffect(
-                    id: PhotoHeroID,
-                    in: photoNamespace,
-                    isSource: !showFullPhoto
-                )
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
                         .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
@@ -624,8 +603,6 @@ struct DayDetailSheet: View {
     }
 }
 
-private let PhotoHeroID = "photoHero"
-
 private struct PhotoFullScreenView: View {
     let image: UIImage
     let sourceFrame: CGRect
@@ -717,14 +694,13 @@ private struct PhotoFullScreenView: View {
             lastScale = minScale
             lastOffset = .zero
         }
+        withAnimation(.easeOut(duration: 0.15)) { controlsVisible = false }
         withAnimation(heroAnimation) {
             presented = false
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + heroDuration) {
             onClose()
         }
-        withAnimation(.easeOut(duration: 0.15)) { controlsVisible = false }
-        onClose()
     }
 
     var body: some View {
@@ -755,8 +731,8 @@ private struct PhotoFullScreenView: View {
                     .scaleEffect(scale)
                     .offset(offset)
                     .position(x: currentCenter.x, y: currentCenter.y)
-                    .gesture(magnification)
-                    .simultaneousGesture(drag)
+                    .gesture(magnification(container: screen))
+                    .simultaneousGesture(drag(container: screen))
                     .onTapGesture(count: 2) {
                         guard presented else { return }
                         withAnimation(.easeInOut(duration: 0.25)) {
