@@ -26,6 +26,8 @@ struct DayDetailSheet: View {
     @State private var photoLoadFailed: Bool = false
     @State private var showFullPhoto: Bool = false
 
+    @Namespace private var photoNamespace
+
     private enum Page { case detail, palette, preview }
 
     private static let tileSize: CGFloat = 120
@@ -94,19 +96,33 @@ struct DayDetailSheet: View {
 
     var body: some View {
         ZStack {
-            switch page {
-            case .detail:
-                detailContent.transition(.opacity)
-            case .palette:
-                paletteContent.transition(.opacity)
-            case .preview:
-                previewContent.transition(.opacity)
+            ZStack {
+                switch page {
+                case .detail:
+                    detailContent.transition(.opacity)
+                case .palette:
+                    paletteContent.transition(.opacity)
+                case .preview:
+                    previewContent.transition(.opacity)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(.easeInOut(duration: 0.25), value: page)
+
+            if showFullPhoto, let image = photoImage {
+                PhotoFullScreenView(
+                    image: image,
+                    namespace: photoNamespace,
+                    isPresented: showFullPhoto,
+                    onClose: closeFullPhoto
+                )
+                .ignoresSafeArea()
+                .zIndex(2)
+                .transition(.identity)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .animation(.easeInOut(duration: 0.25), value: page)
         .presentationDetents([.height(detailHeight), .large], selection: $detent)
-        .presentationDragIndicator(.visible)
+        .presentationDragIndicator(showFullPhoto ? .hidden : .visible)
         .presentationBackground(PaletteTheme.background)
         .sensoryFeedback(.impact(weight: .medium), trigger: selectedSwatchId)
         .onChange(of: photoSelection) { _, newItem in
@@ -374,12 +390,17 @@ struct DayDetailSheet: View {
 
             Spacer(minLength: 24)
         }
-        .fullScreenCover(isPresented: $showFullPhoto) {
-            if let image = photoImage {
-                PhotoFullScreenView(image: image) {
-                    showFullPhoto = false
-                }
-            }
+    }
+
+    private func openFullPhoto() {
+        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+            showFullPhoto = true
+        }
+    }
+
+    private func closeFullPhoto() {
+        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+            showFullPhoto = false
         }
     }
 
@@ -417,13 +438,20 @@ struct DayDetailSheet: View {
                 .aspectRatio(contentMode: .fill)
                 .frame(width: 80, height: 80)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
+                .matchedGeometryEffect(
+                    id: PhotoHeroID,
+                    in: photoNamespace,
+                    isSource: !showFullPhoto
+                )
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
                         .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
+                        .opacity(showFullPhoto ? 0 : 1)
                 )
-                .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
+                .shadow(color: .black.opacity(showFullPhoto ? 0 : 0.06), radius: 4, y: 2)
                 .contentShape(RoundedRectangle(cornerRadius: 14))
-                .onTapGesture { showFullPhoto = true }
+                .opacity(showFullPhoto ? 0 : 1)
+                .onTapGesture { openFullPhoto() }
         } else {
             RoundedRectangle(cornerRadius: 14)
                 .fill(PaletteTheme.surface)
@@ -585,8 +613,12 @@ struct DayDetailSheet: View {
     }
 }
 
+private let PhotoHeroID = "photoHero"
+
 private struct PhotoFullScreenView: View {
     let image: UIImage
+    let namespace: Namespace.ID
+    let isPresented: Bool
     var onClose: () -> Void
 
     @State private var scale: CGFloat = 1.0
@@ -594,104 +626,151 @@ private struct PhotoFullScreenView: View {
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
     @State private var isPinching: Bool = false
+    @State private var controlsVisible: Bool = false
 
     private let minScale: CGFloat = 1.0
     private let maxScale: CGFloat = 4.0
 
-    private var magnification: some Gesture {
+    private func fittedSize(in container: CGSize) -> CGSize {
+        guard image.size.width > 0, image.size.height > 0,
+              container.width > 0, container.height > 0 else { return .zero }
+        let imageAspect = image.size.width / image.size.height
+        let containerAspect = container.width / container.height
+        if imageAspect > containerAspect {
+            let w = container.width
+            return CGSize(width: w, height: w / imageAspect)
+        } else {
+            let h = container.height
+            return CGSize(width: h * imageAspect, height: h)
+        }
+    }
+
+    private func clampOffset(_ proposed: CGSize, container: CGSize, scale: CGFloat) -> CGSize {
+        let fitted = fittedSize(in: container)
+        let scaledW = fitted.width * scale
+        let scaledH = fitted.height * scale
+        let maxX = max(0, (scaledW - container.width) / 2)
+        let maxY = max(0, (scaledH - container.height) / 2)
+        return CGSize(
+            width: min(max(proposed.width, -maxX), maxX),
+            height: min(max(proposed.height, -maxY), maxY)
+        )
+    }
+
+    private func magnification(container: CGSize) -> some Gesture {
         MagnificationGesture()
             .onChanged { value in
                 isPinching = true
                 let proposed = lastScale * value
                 scale = min(max(proposed, minScale * 0.8), maxScale)
+                offset = clampOffset(offset, container: container, scale: scale)
             }
             .onEnded { _ in
                 isPinching = false
                 let clamped = min(max(scale, minScale), maxScale)
-                if clamped != scale || clamped == minScale {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        scale = clamped
-                        if clamped == minScale { offset = .zero }
-                    }
+                let clampedOffset = clamped == minScale
+                    ? .zero
+                    : clampOffset(offset, container: container, scale: clamped)
+                withAnimation(.easeOut(duration: 0.2)) {
+                    scale = clamped
+                    offset = clampedOffset
                 }
                 lastScale = clamped
-                if clamped == minScale { lastOffset = .zero }
+                lastOffset = clampedOffset
             }
     }
 
-    private var drag: some Gesture {
+    private func drag(container: CGSize) -> some Gesture {
         DragGesture()
             .onChanged { value in
                 guard !isPinching, scale > minScale else { return }
-                offset = CGSize(
+                let proposed = CGSize(
                     width: lastOffset.width + value.translation.width,
                     height: lastOffset.height + value.translation.height
                 )
+                offset = clampOffset(proposed, container: container, scale: scale)
             }
             .onEnded { _ in
                 lastOffset = offset
             }
     }
 
+    private func handleDoubleTap(container: CGSize) {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            if scale > minScale {
+                scale = minScale
+                offset = .zero
+            } else {
+                scale = 2.5
+                offset = clampOffset(offset, container: container, scale: 2.5)
+            }
+        }
+        lastScale = scale
+        lastOffset = offset
+    }
+
     private func handleClose() {
-        guard scale > minScale else {
-            onClose()
-            return
+        if scale > minScale {
+            withAnimation(.easeOut(duration: 0.18)) {
+                scale = minScale
+                offset = .zero
+            }
+            lastScale = minScale
+            lastOffset = .zero
         }
-        let zoomOutDuration: TimeInterval = 0.18
-        withAnimation(.easeOut(duration: zoomOutDuration)) {
-            scale = minScale
-            offset = .zero
-        }
-        lastScale = minScale
-        lastOffset = .zero
-        DispatchQueue.main.asyncAfter(deadline: .now() + zoomOutDuration) {
-            onClose()
-        }
+        withAnimation(.easeOut(duration: 0.15)) { controlsVisible = false }
+        onClose()
     }
 
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
+        GeometryReader { geo in
+            let container = geo.size
+            ZStack {
+                Color.black
+                    .opacity(isPresented ? 1 : 0)
+                    .ignoresSafeArea()
+                    .onTapGesture(count: 2) { handleDoubleTap(container: container) }
 
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFit()
-                .scaleEffect(scale)
-                .offset(offset)
-                .gesture(magnification)
-                .simultaneousGesture(drag)
-                .onTapGesture(count: 2) {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        if scale > minScale {
-                            scale = minScale
-                            offset = .zero
-                        } else {
-                            scale = 2.5
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .matchedGeometryEffect(
+                        id: PhotoHeroID,
+                        in: namespace,
+                        isSource: isPresented
+                    )
+                    .scaleEffect(scale)
+                    .offset(offset)
+                    .gesture(magnification(container: container))
+                    .simultaneousGesture(drag(container: container))
+                    .onTapGesture(count: 2) { handleDoubleTap(container: container) }
+
+                VStack {
+                    HStack {
+                        Spacer()
+                        Button(action: handleClose) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 36, height: 36)
+                                .background(Color.black.opacity(0.45), in: Circle())
                         }
+                        .buttonStyle(.plain)
+                        .padding(.trailing, 20)
+                        .padding(.top, 12)
                     }
-                    lastScale = scale
-                    lastOffset = offset
-                }
-
-            VStack {
-                HStack {
                     Spacer()
-                    Button(action: handleClose) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 36, height: 36)
-                            .background(Color.black.opacity(0.45), in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.trailing, 20)
-                    .padding(.top, 12)
                 }
-                Spacer()
+                .opacity(controlsVisible ? 1 : 0)
+                .allowsHitTesting(controlsVisible)
             }
         }
         .statusBarHidden()
+        .onAppear {
+            withAnimation(.easeIn(duration: 0.18).delay(0.1)) {
+                controlsVisible = true
+            }
+        }
     }
 }
 
