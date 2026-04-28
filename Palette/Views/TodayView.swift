@@ -76,10 +76,11 @@ struct TodayView: View {
 
                 Spacer()
             }
+            .padding(.bottom, 110)
             topBar
             bottomQuote
         }
-        .padding(.bottom, 28)
+
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }
