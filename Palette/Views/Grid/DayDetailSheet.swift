@@ -15,7 +15,6 @@ struct DayDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var page: Page = .detail
-    @State private var detent: PresentationDetent
     @State private var selectedSwatchId: String? = nil
     @State private var pendingColorHex: String? = nil
     @State private var showChangeWarning: Bool = false
@@ -38,7 +37,6 @@ struct DayDetailSheet: View {
         self.date = date
         self.entry = entry
         self.onChanged = onChanged
-        _detent = State(initialValue: .height(Self.detailHeight(date: date, entry: entry)))
     }
 
     private var dateFormatter: DateFormatter {
@@ -104,9 +102,9 @@ struct DayDetailSheet: View {
                 previewContent.transition(.opacity)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
         .animation(.easeInOut(duration: 0.25), value: page)
-        .presentationDetents([.height(detailHeight), .large], selection: $detent)
+        .selfSizingDetent(initialEstimate: detailHeight)
         .presentationDragIndicator(showFullPhoto ? .hidden : .visible)
         .presentationBackground(PaletteTheme.background)
         .sensoryFeedback(.impact(weight: .medium), trigger: selectedSwatchId)
@@ -528,14 +526,12 @@ struct DayDetailSheet: View {
 
     private func openPalette() {
         withAnimation(.easeInOut(duration: 0.3)) {
-            detent = .large
             page = .palette
         }
     }
 
     private func closePalette() {
         withAnimation(.easeInOut(duration: 0.3)) {
-            detent = .height(detailHeight)
             page = .detail
         }
     }
@@ -546,7 +542,6 @@ struct DayDetailSheet: View {
         photoLoadFailed = false
         showFullPhoto = false
         withAnimation(.easeInOut(duration: 0.3)) {
-            detent = .large
             page = .palette
         }
     }
@@ -556,7 +551,6 @@ struct DayDetailSheet: View {
         photoLoadFailed = false
         if page != .preview {
             withAnimation(.easeInOut(duration: 0.3)) {
-                detent = .large
                 page = .preview
             }
         } else {
