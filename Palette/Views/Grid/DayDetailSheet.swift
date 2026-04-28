@@ -25,7 +25,6 @@ struct DayDetailSheet: View {
     @State private var candidateSwatches: [PaletteSwatch] = []
     @State private var photoLoadFailed: Bool = false
     @State private var showFullPhoto: Bool = false
-    @State private var thumbFrame: CGRect = .zero
 
     @Namespace private var photoNamespace
 
@@ -391,15 +390,6 @@ struct DayDetailSheet: View {
 
             Spacer(minLength: 24)
         }
-        .fullScreenCover(isPresented: $showFullPhoto) {
-            if let image = photoImage {
-                PhotoFullScreenView(image: image, sourceFrame: thumbFrame) {
-                    var t = Transaction()
-                    t.disablesAnimations = true
-                    withTransaction(t) { showFullPhoto = false }
-                }
-            }
-        }
     }
 
     private var previewHeader: some View {
@@ -449,20 +439,7 @@ struct DayDetailSheet: View {
                 .shadow(color: .black.opacity(showFullPhoto ? 0 : 0.06), radius: 4, y: 2)
                 .contentShape(RoundedRectangle(cornerRadius: 14))
                 .opacity(showFullPhoto ? 0 : 1)
-                .background(
-                    GeometryReader { geo in
-                        Color.clear
-                            .onAppear { thumbFrame = geo.frame(in: .global) }
-                            .onChange(of: geo.frame(in: .global)) { _, newValue in
-                                thumbFrame = newValue
-                            }
-                    }
-                )
-                .onTapGesture {
-                    var t = Transaction()
-                    t.disablesAnimations = true
-                    withTransaction(t) { showFullPhoto = true }
-                }
+                .onTapGesture { openFullPhoto() }
         } else {
             RoundedRectangle(cornerRadius: 14)
                 .fill(PaletteTheme.surface)
@@ -604,6 +581,18 @@ struct DayDetailSheet: View {
         photoSelection = nil
     }
 
+    private func openFullPhoto() {
+        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+            showFullPhoto = true
+        }
+    }
+
+    private func closeFullPhoto() {
+        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+            showFullPhoto = false
+        }
+    }
+
     private func clearEntry() {
         ColorStore.delete(for: date, in: context)
         onChanged()
@@ -628,25 +617,22 @@ private let PhotoHeroID = "photoHero"
 
 private struct PhotoFullScreenView: View {
     let image: UIImage
-    let sourceFrame: CGRect
+    let namespace: Namespace.ID
+    let isPresented: Bool
     var onClose: () -> Void
 
-    @State private var presented: Bool = false
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
     @State private var isPinching: Bool = false
-    @State private var controlsVisible: Bool = false
 
     private let minScale: CGFloat = 1.0
     private let maxScale: CGFloat = 4.0
-    private let heroAnimation: Animation = .spring(response: 0.42, dampingFraction: 0.86)
-    private let heroDuration: TimeInterval = 0.42
 
     private func fittedSize(in container: CGSize) -> CGSize {
         guard image.size.width > 0, image.size.height > 0,
-              container.width > 0, container.height > 0 else { return .zero }
+              container.width > 0, container.height > 0 else { return container }
         let imageAspect = image.size.width / image.size.height
         let containerAspect = container.width / container.height
         if imageAspect > containerAspect {
@@ -670,7 +656,7 @@ private struct PhotoFullScreenView: View {
         )
     }
 
-    private func magnification(container: CGSize) -> some Gesture {
+    private func makeMagnification(container: CGSize) -> some Gesture {
         MagnificationGesture()
             .onChanged { value in
                 isPinching = true
@@ -693,7 +679,7 @@ private struct PhotoFullScreenView: View {
             }
     }
 
-    private func drag(container: CGSize) -> some Gesture {
+    private func makeDrag(container: CGSize) -> some Gesture {
         DragGesture()
             .onChanged { value in
                 guard !isPinching, scale > minScale else { return }
@@ -710,55 +696,41 @@ private struct PhotoFullScreenView: View {
 
     private func handleClose() {
         if scale > minScale {
-            withAnimation(.easeOut(duration: 0.18)) {
-                scale = minScale
-                offset = .zero
-            }
+            scale = minScale
+            offset = .zero
             lastScale = minScale
             lastOffset = .zero
         }
-        withAnimation(heroAnimation) {
-            presented = false
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + heroDuration) {
-            onClose()
-        }
-        withAnimation(.easeOut(duration: 0.15)) { controlsVisible = false }
         onClose()
     }
 
     var body: some View {
         GeometryReader { geo in
             let screen = geo.size
-            let safeSource = sourceFrame == .zero
-                ? CGRect(x: screen.width / 2, y: screen.height / 2, width: 1, height: 1)
-                : sourceFrame
-            let imageSize = aspectFitSize(for: image.size, in: screen)
-            let targetCenter = CGPoint(x: screen.width / 2, y: screen.height / 2)
-
-            let currentSize = presented ? imageSize : CGSize(width: safeSource.width, height: safeSource.height)
-            let currentCenter = presented
-                ? targetCenter
-                : CGPoint(x: safeSource.midX, y: safeSource.midY)
-            let currentCorner: CGFloat = presented ? 0 : 14
+            let imageSize = fittedSize(in: screen)
 
             ZStack {
                 Color.black
                     .ignoresSafeArea()
-                    .opacity(presented ? 1 : 0)
+                    .opacity(isPresented ? 1 : 0)
+                    .onTapGesture { handleClose() }
 
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: currentSize.width, height: currentSize.height)
-                    .clipShape(RoundedRectangle(cornerRadius: currentCorner))
+                    .frame(width: imageSize.width, height: imageSize.height)
+                    .clipShape(RoundedRectangle(cornerRadius: isPresented ? 0 : 14))
+                    .matchedGeometryEffect(
+                        id: PhotoHeroID,
+                        in: namespace,
+                        isSource: isPresented
+                    )
                     .scaleEffect(scale)
                     .offset(offset)
-                    .position(x: currentCenter.x, y: currentCenter.y)
-                    .gesture(magnification)
-                    .simultaneousGesture(drag)
+                    .frame(width: screen.width, height: screen.height)
+                    .gesture(makeMagnification(container: screen))
+                    .simultaneousGesture(makeDrag(container: screen))
                     .onTapGesture(count: 2) {
-                        guard presented else { return }
                         withAnimation(.easeInOut(duration: 0.25)) {
                             if scale > minScale {
                                 scale = minScale
@@ -787,22 +759,11 @@ private struct PhotoFullScreenView: View {
                     }
                     Spacer()
                 }
-                .opacity(presented ? 1 : 0)
+                .opacity(isPresented ? 1 : 0)
             }
             .ignoresSafeArea()
         }
         .statusBarHidden()
-        .onAppear {
-            withAnimation(heroAnimation) {
-                presented = true
-            }
-        }
-    }
-
-    private func aspectFitSize(for imageSize: CGSize, in container: CGSize) -> CGSize {
-        guard imageSize.width > 0, imageSize.height > 0 else { return container }
-        let ratio = min(container.width / imageSize.width, container.height / imageSize.height)
-        return CGSize(width: imageSize.width * ratio, height: imageSize.height * ratio)
     }
 }
 
