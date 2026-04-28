@@ -24,10 +24,14 @@ struct DayDetailSheet: View {
     @State private var photoImage: UIImage? = nil
     @State private var candidateSwatches: [PaletteSwatch] = []
     @State private var photoLoadFailed: Bool = false
+    @State private var showFullPhoto: Bool = false
 
     private enum Page { case detail, palette, preview }
 
     private static let tileSize: CGFloat = 120
+    private static let candidateCount: Int = 5
+    private static let candidateTileSize: CGFloat = 56
+    private static let candidateSpacing: CGFloat = 10
 
     init(date: Date, entry: ColorEntry?, onChanged: @escaping () -> Void = {}) {
         self.date = date
@@ -370,6 +374,13 @@ struct DayDetailSheet: View {
 
             Spacer(minLength: 24)
         }
+        .fullScreenCover(isPresented: $showFullPhoto) {
+            if let image = photoImage {
+                PhotoFullScreenView(image: image) {
+                    showFullPhoto = false
+                }
+            }
+        }
     }
 
     private var previewHeader: some View {
@@ -411,6 +422,8 @@ struct DayDetailSheet: View {
                         .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
                 )
                 .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
+                .contentShape(RoundedRectangle(cornerRadius: 14))
+                .onTapGesture { showFullPhoto = true }
         } else {
             RoundedRectangle(cornerRadius: 14)
                 .fill(PaletteTheme.surface)
@@ -423,13 +436,13 @@ struct DayDetailSheet: View {
     }
 
     private var candidatesRow: some View {
-        HStack(spacing: 16) {
-            ForEach(0..<3, id: \.self) { index in
+        HStack(spacing: Self.candidateSpacing) {
+            ForEach(0..<Self.candidateCount, id: \.self) { index in
                 if index < candidateSwatches.count {
                     let swatch = candidateSwatches[index]
                     PressableTile(
                         color: swatch.color,
-                        size: 72,
+                        size: Self.candidateTileSize,
                         isSelected: selectedSwatchId == swatch.id,
                         action: { handleSelect(swatch) }
                     )
@@ -441,11 +454,11 @@ struct DayDetailSheet: View {
     }
 
     private var placeholderTile: some View {
-        RoundedRectangle(cornerRadius: 72 * 0.22)
+        RoundedRectangle(cornerRadius: Self.candidateTileSize * 0.22)
             .fill(PaletteTheme.surface)
-            .frame(width: 72, height: 72)
+            .frame(width: Self.candidateTileSize, height: Self.candidateTileSize)
             .overlay(
-                RoundedRectangle(cornerRadius: 72 * 0.22)
+                RoundedRectangle(cornerRadius: Self.candidateTileSize * 0.22)
                     .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
             )
     }
@@ -513,6 +526,7 @@ struct DayDetailSheet: View {
         photoImage = nil
         candidateSwatches = []
         photoLoadFailed = false
+        showFullPhoto = false
         withAnimation(.easeInOut(duration: 0.3)) {
             detent = .large
             page = .palette
@@ -541,7 +555,7 @@ struct DayDetailSheet: View {
         photoImage = UIImage(data: data)
 
         let buckets = await ColorExtractor.extract(from: data)
-        let matches = SwatchMatcher.top(3, from: buckets, in: DefaultPalette.swatches)
+        let matches = SwatchMatcher.top(Self.candidateCount, from: buckets, in: DefaultPalette.swatches)
 
         withAnimation(.easeInOut(duration: 0.2)) {
             candidateSwatches = matches
@@ -568,6 +582,86 @@ struct DayDetailSheet: View {
             onChanged()
             dismiss()
         }
+    }
+}
+
+private struct PhotoFullScreenView: View {
+    let image: UIImage
+    var onClose: () -> Void
+
+    @State private var scale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @GestureState private var gestureScale: CGFloat = 1.0
+    @GestureState private var gestureOffset: CGSize = .zero
+
+    private let minScale: CGFloat = 1.0
+    private let maxScale: CGFloat = 4.0
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .scaleEffect(scale * gestureScale)
+                .offset(
+                    x: offset.width + gestureOffset.width,
+                    y: offset.height + gestureOffset.height
+                )
+                .gesture(
+                    SimultaneousGesture(
+                        MagnificationGesture()
+                            .updating($gestureScale) { value, state, _ in
+                                state = value
+                            }
+                            .onEnded { value in
+                                let newScale = min(max(scale * value, minScale), maxScale)
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    scale = newScale
+                                    if newScale == minScale { offset = .zero }
+                                }
+                            },
+                        DragGesture()
+                            .updating($gestureOffset) { value, state, _ in
+                                if scale > 1.0 { state = value.translation }
+                            }
+                            .onEnded { value in
+                                guard scale > 1.0 else { return }
+                                offset.width += value.translation.width
+                                offset.height += value.translation.height
+                            }
+                    )
+                )
+                .onTapGesture(count: 2) {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        if scale > 1.0 {
+                            scale = 1.0
+                            offset = .zero
+                        } else {
+                            scale = 2.5
+                        }
+                    }
+                }
+
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(Color.black.opacity(0.45), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.trailing, 20)
+                    .padding(.top, 12)
+                }
+                Spacer()
+            }
+        }
+        .statusBarHidden()
     }
 }
 
