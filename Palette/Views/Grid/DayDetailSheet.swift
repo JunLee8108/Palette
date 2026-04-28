@@ -27,6 +27,8 @@ struct DayDetailSheet: View {
     @State private var showFullPhoto: Bool = false
     @State private var thumbFrame: CGRect = .zero
 
+    @Namespace private var photoNamespace
+
     private enum Page { case detail, palette, preview }
 
     private static let tileSize: CGFloat = 120
@@ -95,19 +97,33 @@ struct DayDetailSheet: View {
 
     var body: some View {
         ZStack {
-            switch page {
-            case .detail:
-                detailContent.transition(.opacity)
-            case .palette:
-                paletteContent.transition(.opacity)
-            case .preview:
-                previewContent.transition(.opacity)
+            ZStack {
+                switch page {
+                case .detail:
+                    detailContent.transition(.opacity)
+                case .palette:
+                    paletteContent.transition(.opacity)
+                case .preview:
+                    previewContent.transition(.opacity)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(.easeInOut(duration: 0.25), value: page)
+
+            if showFullPhoto, let image = photoImage {
+                PhotoFullScreenView(
+                    image: image,
+                    namespace: photoNamespace,
+                    isPresented: showFullPhoto,
+                    onClose: closeFullPhoto
+                )
+                .ignoresSafeArea()
+                .zIndex(2)
+                .transition(.identity)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .animation(.easeInOut(duration: 0.25), value: page)
         .presentationDetents([.height(detailHeight), .large], selection: $detent)
-        .presentationDragIndicator(.visible)
+        .presentationDragIndicator(showFullPhoto ? .hidden : .visible)
         .presentationBackground(PaletteTheme.background)
         .sensoryFeedback(.impact(weight: .medium), trigger: selectedSwatchId)
         .onChange(of: photoSelection) { _, newItem in
@@ -420,11 +436,17 @@ struct DayDetailSheet: View {
                 .aspectRatio(contentMode: .fill)
                 .frame(width: 80, height: 80)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
+                .matchedGeometryEffect(
+                    id: PhotoHeroID,
+                    in: photoNamespace,
+                    isSource: !showFullPhoto
+                )
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
                         .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
+                        .opacity(showFullPhoto ? 0 : 1)
                 )
-                .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
+                .shadow(color: .black.opacity(showFullPhoto ? 0 : 0.06), radius: 4, y: 2)
                 .contentShape(RoundedRectangle(cornerRadius: 14))
                 .opacity(showFullPhoto ? 0 : 1)
                 .background(
@@ -602,6 +624,8 @@ struct DayDetailSheet: View {
     }
 }
 
+private let PhotoHeroID = "photoHero"
+
 private struct PhotoFullScreenView: View {
     let image: UIImage
     let sourceFrame: CGRect
@@ -613,41 +637,71 @@ private struct PhotoFullScreenView: View {
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
     @State private var isPinching: Bool = false
+    @State private var controlsVisible: Bool = false
 
     private let minScale: CGFloat = 1.0
     private let maxScale: CGFloat = 4.0
     private let heroAnimation: Animation = .spring(response: 0.42, dampingFraction: 0.86)
     private let heroDuration: TimeInterval = 0.42
 
-    private var magnification: some Gesture {
+    private func fittedSize(in container: CGSize) -> CGSize {
+        guard image.size.width > 0, image.size.height > 0,
+              container.width > 0, container.height > 0 else { return .zero }
+        let imageAspect = image.size.width / image.size.height
+        let containerAspect = container.width / container.height
+        if imageAspect > containerAspect {
+            let w = container.width
+            return CGSize(width: w, height: w / imageAspect)
+        } else {
+            let h = container.height
+            return CGSize(width: h * imageAspect, height: h)
+        }
+    }
+
+    private func clampOffset(_ proposed: CGSize, container: CGSize, scale: CGFloat) -> CGSize {
+        let fitted = fittedSize(in: container)
+        let scaledW = fitted.width * scale
+        let scaledH = fitted.height * scale
+        let maxX = max(0, (scaledW - container.width) / 2)
+        let maxY = max(0, (scaledH - container.height) / 2)
+        return CGSize(
+            width: min(max(proposed.width, -maxX), maxX),
+            height: min(max(proposed.height, -maxY), maxY)
+        )
+    }
+
+    private func magnification(container: CGSize) -> some Gesture {
         MagnificationGesture()
             .onChanged { value in
                 isPinching = true
                 let proposed = lastScale * value
                 scale = min(max(proposed, minScale * 0.8), maxScale)
+                offset = clampOffset(offset, container: container, scale: scale)
             }
             .onEnded { _ in
                 isPinching = false
                 let clamped = min(max(scale, minScale), maxScale)
-                if clamped != scale || clamped == minScale {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        scale = clamped
-                        if clamped == minScale { offset = .zero }
-                    }
+                let clampedOffset = clamped == minScale
+                    ? .zero
+                    : clampOffset(offset, container: container, scale: clamped)
+                withAnimation(.easeOut(duration: 0.2)) {
+                    scale = clamped
+                    offset = clampedOffset
                 }
                 lastScale = clamped
-                if clamped == minScale { lastOffset = .zero }
+                lastOffset = clampedOffset
             }
     }
 
-    private var drag: some Gesture {
+    private func drag(container: CGSize) -> some Gesture {
         DragGesture()
             .onChanged { value in
                 guard !isPinching, scale > minScale else { return }
-                offset = CGSize(
+                let proposed = CGSize(
                     width: lastOffset.width + value.translation.width,
                     height: lastOffset.height + value.translation.height
                 )
+                offset = clampOffset(proposed, container: container, scale: scale)
             }
             .onEnded { _ in
                 lastOffset = offset
@@ -669,6 +723,8 @@ private struct PhotoFullScreenView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + heroDuration) {
             onClose()
         }
+        withAnimation(.easeOut(duration: 0.15)) { controlsVisible = false }
+        onClose()
     }
 
     var body: some View {
