@@ -25,6 +25,7 @@ struct DayDetailSheet: View {
     @State private var candidateSwatches: [PaletteSwatch] = []
     @State private var photoLoadFailed: Bool = false
     @State private var showFullPhoto: Bool = false
+    @State private var thumbFrame: CGRect = .zero
 
     private enum Page { case detail, palette, preview }
 
@@ -376,8 +377,10 @@ struct DayDetailSheet: View {
         }
         .fullScreenCover(isPresented: $showFullPhoto) {
             if let image = photoImage {
-                PhotoFullScreenView(image: image) {
-                    showFullPhoto = false
+                PhotoFullScreenView(image: image, sourceFrame: thumbFrame) {
+                    var t = Transaction()
+                    t.disablesAnimations = true
+                    withTransaction(t) { showFullPhoto = false }
                 }
             }
         }
@@ -423,7 +426,21 @@ struct DayDetailSheet: View {
                 )
                 .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
                 .contentShape(RoundedRectangle(cornerRadius: 14))
-                .onTapGesture { showFullPhoto = true }
+                .opacity(showFullPhoto ? 0 : 1)
+                .background(
+                    GeometryReader { geo in
+                        Color.clear
+                            .onAppear { thumbFrame = geo.frame(in: .global) }
+                            .onChange(of: geo.frame(in: .global)) { _, newValue in
+                                thumbFrame = newValue
+                            }
+                    }
+                )
+                .onTapGesture {
+                    var t = Transaction()
+                    t.disablesAnimations = true
+                    withTransaction(t) { showFullPhoto = true }
+                }
         } else {
             RoundedRectangle(cornerRadius: 14)
                 .fill(PaletteTheme.surface)
@@ -587,8 +604,10 @@ struct DayDetailSheet: View {
 
 private struct PhotoFullScreenView: View {
     let image: UIImage
+    let sourceFrame: CGRect
     var onClose: () -> Void
 
+    @State private var presented: Bool = false
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
@@ -597,6 +616,8 @@ private struct PhotoFullScreenView: View {
 
     private let minScale: CGFloat = 1.0
     private let maxScale: CGFloat = 4.0
+    private let heroAnimation: Animation = .spring(response: 0.42, dampingFraction: 0.86)
+    private let heroDuration: TimeInterval = 0.42
 
     private var magnification: some Gesture {
         MagnificationGesture()
@@ -634,64 +655,98 @@ private struct PhotoFullScreenView: View {
     }
 
     private func handleClose() {
-        guard scale > minScale else {
-            onClose()
-            return
+        if scale > minScale {
+            withAnimation(.easeOut(duration: 0.18)) {
+                scale = minScale
+                offset = .zero
+            }
+            lastScale = minScale
+            lastOffset = .zero
         }
-        let zoomOutDuration: TimeInterval = 0.18
-        withAnimation(.easeOut(duration: zoomOutDuration)) {
-            scale = minScale
-            offset = .zero
+        withAnimation(heroAnimation) {
+            presented = false
         }
-        lastScale = minScale
-        lastOffset = .zero
-        DispatchQueue.main.asyncAfter(deadline: .now() + zoomOutDuration) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + heroDuration) {
             onClose()
         }
     }
 
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
+        GeometryReader { geo in
+            let screen = geo.size
+            let safeSource = sourceFrame == .zero
+                ? CGRect(x: screen.width / 2, y: screen.height / 2, width: 1, height: 1)
+                : sourceFrame
+            let imageSize = aspectFitSize(for: image.size, in: screen)
+            let targetCenter = CGPoint(x: screen.width / 2, y: screen.height / 2)
 
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFit()
-                .scaleEffect(scale)
-                .offset(offset)
-                .gesture(magnification)
-                .simultaneousGesture(drag)
-                .onTapGesture(count: 2) {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        if scale > minScale {
-                            scale = minScale
-                            offset = .zero
-                        } else {
-                            scale = 2.5
+            let currentSize = presented ? imageSize : CGSize(width: safeSource.width, height: safeSource.height)
+            let currentCenter = presented
+                ? targetCenter
+                : CGPoint(x: safeSource.midX, y: safeSource.midY)
+            let currentCorner: CGFloat = presented ? 0 : 14
+
+            ZStack {
+                Color.black
+                    .ignoresSafeArea()
+                    .opacity(presented ? 1 : 0)
+
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: currentSize.width, height: currentSize.height)
+                    .clipShape(RoundedRectangle(cornerRadius: currentCorner))
+                    .scaleEffect(scale)
+                    .offset(offset)
+                    .position(x: currentCenter.x, y: currentCenter.y)
+                    .gesture(magnification)
+                    .simultaneousGesture(drag)
+                    .onTapGesture(count: 2) {
+                        guard presented else { return }
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            if scale > minScale {
+                                scale = minScale
+                                offset = .zero
+                            } else {
+                                scale = 2.5
+                            }
                         }
+                        lastScale = scale
+                        lastOffset = offset
                     }
-                    lastScale = scale
-                    lastOffset = offset
-                }
 
-            VStack {
-                HStack {
-                    Spacer()
-                    Button(action: handleClose) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 36, height: 36)
-                            .background(Color.black.opacity(0.45), in: Circle())
+                VStack {
+                    HStack {
+                        Spacer()
+                        Button(action: handleClose) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 36, height: 36)
+                                .background(Color.black.opacity(0.45), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.trailing, 20)
+                        .padding(.top, 12)
                     }
-                    .buttonStyle(.plain)
-                    .padding(.trailing, 20)
-                    .padding(.top, 12)
+                    Spacer()
                 }
-                Spacer()
+                .opacity(presented ? 1 : 0)
             }
+            .ignoresSafeArea()
         }
         .statusBarHidden()
+        .onAppear {
+            withAnimation(heroAnimation) {
+                presented = true
+            }
+        }
+    }
+
+    private func aspectFitSize(for imageSize: CGSize, in container: CGSize) -> CGSize {
+        guard imageSize.width > 0, imageSize.height > 0 else { return container }
+        let ratio = min(container.width / imageSize.width, container.height / imageSize.height)
+        return CGSize(width: imageSize.width * ratio, height: imageSize.height * ratio)
     }
 }
 
