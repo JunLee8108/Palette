@@ -590,12 +590,48 @@ private struct PhotoFullScreenView: View {
     var onClose: () -> Void
 
     @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
-    @GestureState private var gestureScale: CGFloat = 1.0
-    @GestureState private var gestureOffset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+    @State private var isPinching: Bool = false
 
     private let minScale: CGFloat = 1.0
     private let maxScale: CGFloat = 4.0
+
+    private var magnification: some Gesture {
+        MagnificationGesture()
+            .onChanged { value in
+                isPinching = true
+                let proposed = lastScale * value
+                scale = min(max(proposed, minScale * 0.8), maxScale)
+            }
+            .onEnded { _ in
+                isPinching = false
+                let clamped = min(max(scale, minScale), maxScale)
+                if clamped != scale || clamped == minScale {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        scale = clamped
+                        if clamped == minScale { offset = .zero }
+                    }
+                }
+                lastScale = clamped
+                if clamped == minScale { lastOffset = .zero }
+            }
+    }
+
+    private var drag: some Gesture {
+        DragGesture()
+            .onChanged { value in
+                guard !isPinching, scale > minScale else { return }
+                offset = CGSize(
+                    width: lastOffset.width + value.translation.width,
+                    height: lastOffset.height + value.translation.height
+                )
+            }
+            .onEnded { _ in
+                lastOffset = offset
+            }
+    }
 
     var body: some View {
         ZStack {
@@ -604,44 +640,21 @@ private struct PhotoFullScreenView: View {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFit()
-                .scaleEffect(scale * gestureScale)
-                .offset(
-                    x: offset.width + gestureOffset.width,
-                    y: offset.height + gestureOffset.height
-                )
-                .gesture(
-                    SimultaneousGesture(
-                        MagnificationGesture()
-                            .updating($gestureScale) { value, state, _ in
-                                state = value
-                            }
-                            .onEnded { value in
-                                let newScale = min(max(scale * value, minScale), maxScale)
-                                withAnimation(.easeOut(duration: 0.2)) {
-                                    scale = newScale
-                                    if newScale == minScale { offset = .zero }
-                                }
-                            },
-                        DragGesture()
-                            .updating($gestureOffset) { value, state, _ in
-                                if scale > 1.0 { state = value.translation }
-                            }
-                            .onEnded { value in
-                                guard scale > 1.0 else { return }
-                                offset.width += value.translation.width
-                                offset.height += value.translation.height
-                            }
-                    )
-                )
+                .scaleEffect(scale)
+                .offset(offset)
+                .gesture(magnification)
+                .simultaneousGesture(drag)
                 .onTapGesture(count: 2) {
                     withAnimation(.easeInOut(duration: 0.25)) {
-                        if scale > 1.0 {
-                            scale = 1.0
+                        if scale > minScale {
+                            scale = minScale
                             offset = .zero
                         } else {
                             scale = 2.5
                         }
                     }
+                    lastScale = scale
+                    lastOffset = offset
                 }
 
             VStack {
