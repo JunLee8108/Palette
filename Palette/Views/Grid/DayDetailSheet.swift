@@ -633,6 +633,23 @@ private struct PhotoFullScreenView: View {
             }
     }
 
+    private func handleClose() {
+        guard scale > minScale else {
+            onClose()
+            return
+        }
+        let zoomOutDuration: TimeInterval = 0.18
+        withAnimation(.easeOut(duration: zoomOutDuration)) {
+            scale = minScale
+            offset = .zero
+        }
+        lastScale = minScale
+        lastOffset = .zero
+        DispatchQueue.main.asyncAfter(deadline: .now() + zoomOutDuration) {
+            onClose()
+        }
+    }
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
@@ -660,7 +677,7 @@ private struct PhotoFullScreenView: View {
             VStack {
                 HStack {
                     Spacer()
-                    Button(action: onClose) {
+                    Button(action: handleClose) {
                         Image(systemName: "xmark")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(.white)
