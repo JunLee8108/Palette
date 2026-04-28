@@ -25,6 +25,7 @@ struct DayDetailSheet: View {
     @State private var candidateSwatches: [PaletteSwatch] = []
     @State private var photoLoadFailed: Bool = false
     @State private var showFullPhoto: Bool = false
+    @State private var thumbFrame: CGRect = .zero
 
     @Namespace private var photoNamespace
 
@@ -390,17 +391,14 @@ struct DayDetailSheet: View {
 
             Spacer(minLength: 24)
         }
-    }
-
-    private func openFullPhoto() {
-        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
-            showFullPhoto = true
-        }
-    }
-
-    private func closeFullPhoto() {
-        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
-            showFullPhoto = false
+        .fullScreenCover(isPresented: $showFullPhoto) {
+            if let image = photoImage {
+                PhotoFullScreenView(image: image, sourceFrame: thumbFrame) {
+                    var t = Transaction()
+                    t.disablesAnimations = true
+                    withTransaction(t) { showFullPhoto = false }
+                }
+            }
         }
     }
 
@@ -451,7 +449,20 @@ struct DayDetailSheet: View {
                 .shadow(color: .black.opacity(showFullPhoto ? 0 : 0.06), radius: 4, y: 2)
                 .contentShape(RoundedRectangle(cornerRadius: 14))
                 .opacity(showFullPhoto ? 0 : 1)
-                .onTapGesture { openFullPhoto() }
+                .background(
+                    GeometryReader { geo in
+                        Color.clear
+                            .onAppear { thumbFrame = geo.frame(in: .global) }
+                            .onChange(of: geo.frame(in: .global)) { _, newValue in
+                                thumbFrame = newValue
+                            }
+                    }
+                )
+                .onTapGesture {
+                    var t = Transaction()
+                    t.disablesAnimations = true
+                    withTransaction(t) { showFullPhoto = true }
+                }
         } else {
             RoundedRectangle(cornerRadius: 14)
                 .fill(PaletteTheme.surface)
@@ -617,10 +628,10 @@ private let PhotoHeroID = "photoHero"
 
 private struct PhotoFullScreenView: View {
     let image: UIImage
-    let namespace: Namespace.ID
-    let isPresented: Bool
+    let sourceFrame: CGRect
     var onClose: () -> Void
 
+    @State private var presented: Bool = false
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
@@ -630,6 +641,8 @@ private struct PhotoFullScreenView: View {
 
     private let minScale: CGFloat = 1.0
     private let maxScale: CGFloat = 4.0
+    private let heroAnimation: Animation = .spring(response: 0.42, dampingFraction: 0.86)
+    private let heroDuration: TimeInterval = 0.42
 
     private func fittedSize(in container: CGSize) -> CGSize {
         guard image.size.width > 0, image.size.height > 0,
@@ -695,20 +708,6 @@ private struct PhotoFullScreenView: View {
             }
     }
 
-    private func handleDoubleTap(container: CGSize) {
-        withAnimation(.easeInOut(duration: 0.25)) {
-            if scale > minScale {
-                scale = minScale
-                offset = .zero
-            } else {
-                scale = 2.5
-                offset = clampOffset(offset, container: container, scale: 2.5)
-            }
-        }
-        lastScale = scale
-        lastOffset = offset
-    }
-
     private func handleClose() {
         if scale > minScale {
             withAnimation(.easeOut(duration: 0.18)) {
@@ -718,32 +717,59 @@ private struct PhotoFullScreenView: View {
             lastScale = minScale
             lastOffset = .zero
         }
+        withAnimation(heroAnimation) {
+            presented = false
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + heroDuration) {
+            onClose()
+        }
         withAnimation(.easeOut(duration: 0.15)) { controlsVisible = false }
         onClose()
     }
 
     var body: some View {
         GeometryReader { geo in
-            let container = geo.size
+            let screen = geo.size
+            let safeSource = sourceFrame == .zero
+                ? CGRect(x: screen.width / 2, y: screen.height / 2, width: 1, height: 1)
+                : sourceFrame
+            let imageSize = aspectFitSize(for: image.size, in: screen)
+            let targetCenter = CGPoint(x: screen.width / 2, y: screen.height / 2)
+
+            let currentSize = presented ? imageSize : CGSize(width: safeSource.width, height: safeSource.height)
+            let currentCenter = presented
+                ? targetCenter
+                : CGPoint(x: safeSource.midX, y: safeSource.midY)
+            let currentCorner: CGFloat = presented ? 0 : 14
+
             ZStack {
                 Color.black
-                    .opacity(isPresented ? 1 : 0)
                     .ignoresSafeArea()
-                    .onTapGesture(count: 2) { handleDoubleTap(container: container) }
+                    .opacity(presented ? 1 : 0)
 
                 Image(uiImage: image)
                     .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .matchedGeometryEffect(
-                        id: PhotoHeroID,
-                        in: namespace,
-                        isSource: isPresented
-                    )
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: currentSize.width, height: currentSize.height)
+                    .clipShape(RoundedRectangle(cornerRadius: currentCorner))
                     .scaleEffect(scale)
                     .offset(offset)
-                    .gesture(magnification(container: container))
-                    .simultaneousGesture(drag(container: container))
-                    .onTapGesture(count: 2) { handleDoubleTap(container: container) }
+                    .position(x: currentCenter.x, y: currentCenter.y)
+                    .gesture(magnification)
+                    .simultaneousGesture(drag)
+                    .onTapGesture(count: 2) {
+                        guard presented else { return }
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            if scale > minScale {
+                                scale = minScale
+                                offset = .zero
+                            } else {
+                                scale = 2.5
+                            }
+                        }
+                        lastScale = scale
+                        lastOffset = offset
+                    }
 
                 VStack {
                     HStack {
@@ -761,16 +787,22 @@ private struct PhotoFullScreenView: View {
                     }
                     Spacer()
                 }
-                .opacity(controlsVisible ? 1 : 0)
-                .allowsHitTesting(controlsVisible)
+                .opacity(presented ? 1 : 0)
             }
+            .ignoresSafeArea()
         }
         .statusBarHidden()
         .onAppear {
-            withAnimation(.easeIn(duration: 0.18).delay(0.1)) {
-                controlsVisible = true
+            withAnimation(heroAnimation) {
+                presented = true
             }
         }
+    }
+
+    private func aspectFitSize(for imageSize: CGSize, in container: CGSize) -> CGSize {
+        guard imageSize.width > 0, imageSize.height > 0 else { return container }
+        let ratio = min(container.width / imageSize.width, container.height / imageSize.height)
+        return CGSize(width: imageSize.width * ratio, height: imageSize.height * ratio)
     }
 }
 
