@@ -639,7 +639,6 @@ private struct PhotoFullScreenView: View {
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
     @State private var isPinching: Bool = false
-    @State private var controlsVisible: Bool = false
 
     private let minScale: CGFloat = 1.0
     private let maxScale: CGFloat = 4.0
@@ -719,7 +718,6 @@ private struct PhotoFullScreenView: View {
             lastScale = minScale
             lastOffset = .zero
         }
-        withAnimation(.easeOut(duration: 0.15)) { controlsVisible = false }
         withAnimation(heroAnimation) {
             presented = false
         }
@@ -734,14 +732,15 @@ private struct PhotoFullScreenView: View {
             let safeSource = sourceFrame == .zero
                 ? CGRect(x: screen.width / 2, y: screen.height / 2, width: 1, height: 1)
                 : sourceFrame
-            let imageSize = aspectFitSize(for: image.size, in: screen)
-            let targetCenter = CGPoint(x: screen.width / 2, y: screen.height / 2)
-
-            let currentSize = presented ? imageSize : CGSize(width: safeSource.width, height: safeSource.height)
-            let currentCenter = presented
-                ? targetCenter
-                : CGPoint(x: safeSource.midX, y: safeSource.midY)
-            let currentCorner: CGFloat = presented ? 0 : 14
+            let imageSize = fittedSize(in: screen)
+            let thumbScale: CGFloat = imageSize.width > 0
+                ? max(safeSource.width / imageSize.width, 0.001)
+                : 1
+            let heroScale = presented ? 1 : thumbScale
+            let appliedScale = heroScale * scale
+            let centerX = presented ? screen.width / 2 : safeSource.midX
+            let centerY = presented ? screen.height / 2 : safeSource.midY
+            let cornerRadius: CGFloat = presented ? 0 : 14 / thumbScale
 
             ZStack {
                 Color.black
@@ -750,12 +749,13 @@ private struct PhotoFullScreenView: View {
 
                 Image(uiImage: image)
                     .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: currentSize.width, height: currentSize.height)
-                    .clipShape(RoundedRectangle(cornerRadius: currentCorner))
-                    .scaleEffect(scale)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: imageSize.width, height: imageSize.height)
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+                    .drawingGroup()
+                    .scaleEffect(appliedScale)
                     .offset(offset)
-                    .position(x: currentCenter.x, y: currentCenter.y)
+                    .position(x: centerX, y: centerY)
                     .gesture(magnification(container: screen))
                     .simultaneousGesture(drag(container: screen))
                     .onTapGesture(count: 2) {
@@ -793,17 +793,11 @@ private struct PhotoFullScreenView: View {
             .ignoresSafeArea()
         }
         .statusBarHidden()
-        .onAppear {
+        .task {
             withAnimation(heroAnimation) {
                 presented = true
             }
         }
-    }
-
-    private func aspectFitSize(for imageSize: CGSize, in container: CGSize) -> CGSize {
-        guard imageSize.width > 0, imageSize.height > 0 else { return container }
-        let ratio = min(container.width / imageSize.width, container.height / imageSize.height)
-        return CGSize(width: imageSize.width * ratio, height: imageSize.height * ratio)
     }
 }
 
