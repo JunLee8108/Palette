@@ -1,8 +1,6 @@
 import SwiftUI
 import SwiftData
-import PhotosUI
 import PaletteShared
-import ImageIO
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -22,20 +20,11 @@ struct DayDetailSheet: View {
     @State private var pendingColorHex: String? = nil
     @State private var showChangeWarning: Bool = false
     @State private var showClearWarning: Bool = false
-    @State private var photoSelection: PhotosPickerItem? = nil
-    @State private var photoImage: UIImage? = nil
-    @State private var candidateSwatches: [PaletteSwatch] = []
-    @State private var photoLoadFailed: Bool = false
-    @State private var showFullPhoto: Bool = false
-    @State private var thumbFrame: CGRect = .zero
 
-    private enum Page { case detail, palette, preview }
+    private enum Page { case detail, palette }
 
     private static let tileSize: CGFloat = 120
-    private static let candidateCount: Int = 5
-    private static let candidateTileSize: CGFloat = 56
-    private static let candidateSpacing: CGFloat = 10
-    private static let paletteSheetHeight: CGFloat = 540
+    private static let paletteSheetHeight: CGFloat = 460
     private static let pageTransition: Animation = .spring(response: 0.45, dampingFraction: 0.86)
     private static let contentTransition: AnyTransition = .asymmetric(
         insertion: .opacity.animation(.easeIn(duration: 0.22).delay(0.18)),
@@ -108,8 +97,6 @@ struct DayDetailSheet: View {
                 detailContent.transition(Self.contentTransition)
             case .palette:
                 paletteContent.transition(Self.contentTransition)
-            case .preview:
-                previewContent.transition(Self.contentTransition)
             }
         }
         .frame(maxWidth: .infinity)
@@ -125,13 +112,9 @@ struct DayDetailSheet: View {
                 detent = .height(newValue)
             }
         }
-        .presentationDragIndicator(showFullPhoto ? .hidden : .visible)
+        .presentationDragIndicator(.visible)
         .presentationBackground(PaletteTheme.background)
         .sensoryFeedback(.impact(weight: .medium), trigger: selectedSwatchId)
-        .onChange(of: photoSelection) { _, newItem in
-            guard let newItem else { return }
-            Task { await processPhoto(item: newItem) }
-        }
         .alert(
             L10n.t("Change this day's color?", "이 날의 색을 바꾸시겠어요?"),
             isPresented: $showChangeWarning
@@ -313,40 +296,7 @@ struct DayDetailSheet: View {
             .padding(.horizontal, 28)
 
             Spacer(minLength: 24)
-
-            photoEntryLink
-
-            Spacer(minLength: 24)
         }
-    }
-
-    private var photoEntryLink: some View {
-        PhotosPicker(
-            selection: $photoSelection,
-            matching: .images,
-            photoLibrary: .shared()
-        ) {
-            captionLabel(L10n.t("From a photo", "사진에서"))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func captionLabel(_ text: String) -> some View {
-        HStack(spacing: 12) {
-            Rectangle()
-                .fill(PaletteTheme.hairline)
-                .frame(width: 32, height: 1)
-            Text(text)
-                .font(.system(size: 12, weight: .regular))
-                .tracking(0.6)
-                .textCase(.uppercase)
-                .foregroundStyle(PaletteTheme.tertiaryText)
-            Rectangle()
-                .fill(PaletteTheme.hairline)
-                .frame(width: 32, height: 1)
-        }
-        .padding(.vertical, 6)
-        .contentShape(Rectangle())
     }
 
     private var paletteHeader: some View {
@@ -373,159 +323,6 @@ struct DayDetailSheet: View {
         }
         .padding(.horizontal, 24)
         .padding(.top, 16)
-    }
-
-    // MARK: - Preview page
-
-    private var previewContent: some View {
-        VStack(spacing: 0) {
-            previewHeader
-
-            Spacer().frame(height: 28)
-
-            photoThumb
-
-            Spacer().frame(height: 28)
-
-            candidatesRow
-
-            Spacer().frame(height: 28)
-
-            rePickPhotoLink
-
-            Spacer(minLength: 24)
-        }
-        .fullScreenCover(isPresented: $showFullPhoto) {
-            if let image = photoImage {
-                PhotoFullScreenView(image: image, sourceFrame: thumbFrame) {
-                    var t = Transaction()
-                    t.disablesAnimations = true
-                    withTransaction(t) { showFullPhoto = false }
-                }
-            }
-        }
-    }
-
-    private var previewHeader: some View {
-        HStack {
-            Button(action: closePreview) {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .semibold))
-                    Text(L10n.t("Back", "뒤로"))
-                        .font(.system(size: 14, weight: .regular))
-                }
-                .foregroundStyle(PaletteTheme.secondaryText)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            Spacer()
-
-            Text(shortDateFormatter.string(from: date))
-                .font(.system(size: 13, weight: .medium))
-                .tracking(0.5)
-                .foregroundStyle(PaletteTheme.tertiaryText)
-                .textCase(.uppercase)
-        }
-        .padding(.horizontal, 24)
-        .padding(.top, 16)
-    }
-
-    @ViewBuilder
-    private var photoThumb: some View {
-        if let image = photoImage {
-            Image(uiImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 80, height: 80)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
-                        .opacity(showFullPhoto ? 0 : 1)
-                )
-                .shadow(color: .black.opacity(showFullPhoto ? 0 : 0.06), radius: 4, y: 2)
-                .contentShape(RoundedRectangle(cornerRadius: 14))
-                .opacity(showFullPhoto ? 0 : 1)
-                .background(
-                    GeometryReader { geo in
-                        Color.clear
-                            .onAppear { thumbFrame = geo.frame(in: .global) }
-                            .onChange(of: geo.frame(in: .global)) { _, newValue in
-                                thumbFrame = newValue
-                            }
-                    }
-                )
-                .onTapGesture {
-                    var t = Transaction()
-                    t.disablesAnimations = true
-                    withTransaction(t) { showFullPhoto = true }
-                }
-        } else {
-            RoundedRectangle(cornerRadius: 14)
-                .fill(PaletteTheme.surface)
-                .frame(width: 80, height: 80)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
-                )
-        }
-    }
-
-    private var candidatesRow: some View {
-        HStack(spacing: Self.candidateSpacing) {
-            ForEach(0..<Self.candidateCount, id: \.self) { index in
-                if index < candidateSwatches.count {
-                    let swatch = candidateSwatches[index]
-                    PressableTile(
-                        color: swatch.color,
-                        size: Self.candidateTileSize,
-                        isSelected: selectedSwatchId == swatch.id,
-                        action: { handleSelect(swatch) }
-                    )
-                } else {
-                    placeholderTile
-                }
-            }
-        }
-    }
-
-    private var placeholderTile: some View {
-        RoundedRectangle(cornerRadius: Self.candidateTileSize * 0.22)
-            .fill(PaletteTheme.surface)
-            .frame(width: Self.candidateTileSize, height: Self.candidateTileSize)
-            .overlay(
-                RoundedRectangle(cornerRadius: Self.candidateTileSize * 0.22)
-                    .strokeBorder(PaletteTheme.hairline, lineWidth: 1)
-            )
-    }
-
-    @ViewBuilder
-    private var rePickPhotoLink: some View {
-        if photoLoadFailed {
-            PhotosPicker(
-                selection: $photoSelection,
-                matching: .images,
-                photoLibrary: .shared()
-            ) {
-                Text(L10n.t("Couldn't read · Try another", "읽지 못했어요 · 다른 사진"))
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundStyle(PaletteTheme.secondaryText)
-                    .padding(.vertical, 6)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        } else {
-            PhotosPicker(
-                selection: $photoSelection,
-                matching: .images,
-                photoLibrary: .shared()
-            ) {
-                captionLabel(L10n.t("Another photo", "다른 사진"))
-            }
-            .buttonStyle(.plain)
-        }
     }
 
     // MARK: - Actions
@@ -565,73 +362,6 @@ struct DayDetailSheet: View {
         }
     }
 
-    private func closePreview() {
-        photoImage = nil
-        candidateSwatches = []
-        photoLoadFailed = false
-        showFullPhoto = false
-        withAnimation(Self.pageTransition) {
-            page = .palette
-            detent = .height(Self.paletteSheetHeight)
-        }
-    }
-
-    @MainActor
-    private func processPhoto(item: PhotosPickerItem) async {
-        photoLoadFailed = false
-        if page != .preview {
-            measuredHeight = nil
-            withAnimation(Self.pageTransition) {
-                page = .preview
-                detent = .height(detailHeight)
-            }
-        } else {
-            photoImage = nil
-            candidateSwatches = []
-        }
-
-        guard let data = try? await item.loadTransferable(type: Data.self) else {
-            photoSelection = nil
-            photoLoadFailed = true
-            return
-        }
-
-        async let preparedImage: UIImage? = Task.detached(priority: .userInitiated) {
-            Self.preparedDisplayImage(from: data)
-        }.value
-        async let buckets = ColorExtractor.extract(from: data)
-
-        photoImage = await preparedImage
-
-        let matches = SwatchMatcher.top(Self.candidateCount, from: await buckets, in: DefaultPalette.swatches)
-
-        withAnimation(.easeInOut(duration: 0.2)) {
-            candidateSwatches = matches
-        }
-
-        if matches.isEmpty { photoLoadFailed = true }
-        photoSelection = nil
-    }
-
-    /// Decode and downsample the image off the main thread so the photo
-    /// viewer doesn't have to pay the cost on first paint. Capped at
-    /// ~3000px on the long edge — enough quality through 4x pinch zoom
-    /// while keeping the GPU texture (and main-thread decode) modest.
-    nonisolated private static func preparedDisplayImage(from data: Data) -> UIImage? {
-        let maxPixelDimension: CGFloat = 3000
-        let options: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceShouldCacheImmediately: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxPixelDimension
-        ]
-        if let src = CGImageSourceCreateWithData(data as CFData, nil),
-           let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, options as CFDictionary) {
-            return UIImage(cgImage: cg).preparingForDisplay() ?? UIImage(cgImage: cg)
-        }
-        return UIImage(data: data)?.preparingForDisplay() ?? UIImage(data: data)
-    }
-
     private func clearEntry() {
         ColorStore.delete(for: date, in: context)
         onChanged()
@@ -648,178 +378,6 @@ struct DayDetailSheet: View {
             try? await Task.sleep(nanoseconds: 220_000_000)
             onChanged()
             dismiss()
-        }
-    }
-}
-
-private struct PhotoFullScreenView: View {
-    let image: UIImage
-    let sourceFrame: CGRect
-    var onClose: () -> Void
-
-    @State private var presented: Bool = false
-    @State private var scale: CGFloat = 1.0
-    @State private var lastScale: CGFloat = 1.0
-    @State private var offset: CGSize = .zero
-    @State private var lastOffset: CGSize = .zero
-    @State private var isPinching: Bool = false
-
-    private let minScale: CGFloat = 1.0
-    private let maxScale: CGFloat = 4.0
-    private let heroAnimation: Animation = .spring(response: 0.42, dampingFraction: 0.86)
-    private let heroDuration: TimeInterval = 0.42
-
-    private func fittedSize(in container: CGSize) -> CGSize {
-        guard image.size.width > 0, image.size.height > 0,
-              container.width > 0, container.height > 0 else { return .zero }
-        let imageAspect = image.size.width / image.size.height
-        let containerAspect = container.width / container.height
-        if imageAspect > containerAspect {
-            let w = container.width
-            return CGSize(width: w, height: w / imageAspect)
-        } else {
-            let h = container.height
-            return CGSize(width: h * imageAspect, height: h)
-        }
-    }
-
-    private func clampOffset(_ proposed: CGSize, container: CGSize, scale: CGFloat) -> CGSize {
-        let fitted = fittedSize(in: container)
-        let scaledW = fitted.width * scale
-        let scaledH = fitted.height * scale
-        let maxX = max(0, (scaledW - container.width) / 2)
-        let maxY = max(0, (scaledH - container.height) / 2)
-        return CGSize(
-            width: min(max(proposed.width, -maxX), maxX),
-            height: min(max(proposed.height, -maxY), maxY)
-        )
-    }
-
-    private func magnification(container: CGSize) -> some Gesture {
-        MagnificationGesture()
-            .onChanged { value in
-                isPinching = true
-                let proposed = lastScale * value
-                scale = min(max(proposed, minScale * 0.8), maxScale)
-                offset = clampOffset(offset, container: container, scale: scale)
-            }
-            .onEnded { _ in
-                isPinching = false
-                let clamped = min(max(scale, minScale), maxScale)
-                let clampedOffset = clamped == minScale
-                    ? .zero
-                    : clampOffset(offset, container: container, scale: clamped)
-                withAnimation(.easeOut(duration: 0.2)) {
-                    scale = clamped
-                    offset = clampedOffset
-                }
-                lastScale = clamped
-                lastOffset = clampedOffset
-            }
-    }
-
-    private func drag(container: CGSize) -> some Gesture {
-        DragGesture()
-            .onChanged { value in
-                guard !isPinching, scale > minScale else { return }
-                let proposed = CGSize(
-                    width: lastOffset.width + value.translation.width,
-                    height: lastOffset.height + value.translation.height
-                )
-                offset = clampOffset(proposed, container: container, scale: scale)
-            }
-            .onEnded { _ in
-                lastOffset = offset
-            }
-    }
-
-    private func handleClose() {
-        if scale > minScale {
-            withAnimation(.easeOut(duration: 0.18)) {
-                scale = minScale
-                offset = .zero
-            }
-            lastScale = minScale
-            lastOffset = .zero
-        }
-        withAnimation(heroAnimation) {
-            presented = false
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + heroDuration) {
-            onClose()
-        }
-    }
-
-    var body: some View {
-        GeometryReader { geo in
-            let screen = geo.size
-            let safeSource = sourceFrame == .zero
-                ? CGRect(x: screen.width / 2, y: screen.height / 2, width: 1, height: 1)
-                : sourceFrame
-            let imageSize = fittedSize(in: screen)
-            let thumbScale: CGFloat = imageSize.width > 0
-                ? max(safeSource.width / imageSize.width, 0.001)
-                : 1
-            let heroScale = presented ? 1 : thumbScale
-            let appliedScale = heroScale * scale
-            let centerX = presented ? screen.width / 2 : safeSource.midX
-            let centerY = presented ? screen.height / 2 : safeSource.midY
-            let cornerRadius: CGFloat = presented ? 0 : 14 / thumbScale
-
-            ZStack {
-                Color.black
-                    .ignoresSafeArea()
-                    .opacity(presented ? 1 : 0)
-
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: imageSize.width, height: imageSize.height)
-                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-                    .scaleEffect(appliedScale)
-                    .offset(offset)
-                    .position(x: centerX, y: centerY)
-                    .gesture(magnification(container: screen))
-                    .simultaneousGesture(drag(container: screen))
-                    .onTapGesture(count: 2) {
-                        guard presented else { return }
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            if scale > minScale {
-                                scale = minScale
-                                offset = .zero
-                            } else {
-                                scale = 2.5
-                            }
-                        }
-                        lastScale = scale
-                        lastOffset = offset
-                    }
-
-                VStack {
-                    HStack {
-                        Spacer()
-                        Button(action: handleClose) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .frame(width: 36, height: 36)
-                                .background(Color.black.opacity(0.45), in: Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.trailing, 20)
-                        .padding(.top, 12)
-                    }
-                    Spacer()
-                }
-                .opacity(presented ? 1 : 0)
-            }
-            .ignoresSafeArea()
-        }
-        .statusBarHidden()
-        .task {
-            withAnimation(heroAnimation) {
-                presented = true
-            }
         }
     }
 }

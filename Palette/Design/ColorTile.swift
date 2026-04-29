@@ -62,35 +62,6 @@ struct ColorTile: View {
     }
 }
 
-struct PressableTile: View {
-    let color: Color
-    var size: CGFloat = 64
-    var isSelected: Bool = false
-    var flat: Bool = false
-    var action: () -> Void = {}
-
-    @State private var isPressed: Bool = false
-
-    var body: some View {
-        ColorTile(color: color, size: size, isSelected: isSelected, flat: flat)
-            .scaleEffect(isPressed ? 0.92 : 1.0)
-            .shadow(
-                color: flat
-                    ? .clear
-                    : (isPressed ? .black.opacity(0.04) : .black.opacity(0.08)),
-                radius: isPressed ? 2 : 4,
-                y: isPressed ? 1 : 2
-            )
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
-            .onTapGesture { action() }
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in isPressed = true }
-                    .onEnded { _ in isPressed = false }
-            )
-    }
-}
-
 #Preview {
     VStack(spacing: 24) {
         ColorTile(color: Color(hex: "#E8594A"), size: 120)
