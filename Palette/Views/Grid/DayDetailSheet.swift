@@ -370,10 +370,13 @@ struct DayDetailSheet: View {
         // signal. The calendar grid is backed by a @Query that updates
         // from the SwiftData delete on its own, so we can safely keep
         // this sheet open and morph its content in place.
+        let postClearHeight = Self.detailHeight(date: date, entry: nil)
         withAnimation(Self.pageTransition) {
             entryWasCleared = true
             pendingColorHex = nil
             selectedSwatchId = nil
+            detent = .height(postClearHeight)
+            measuredHeight = postClearHeight
         }
     }
 
