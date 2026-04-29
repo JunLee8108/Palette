@@ -15,6 +15,8 @@ struct DayDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var page: Page = .detail
+    @State private var detent: PresentationDetent = .height(400)
+    @State private var measuredHeight: CGFloat? = nil
     @State private var selectedSwatchId: String? = nil
     @State private var pendingColorHex: String? = nil
     @State private var showChangeWarning: Bool = false
@@ -32,11 +34,14 @@ struct DayDetailSheet: View {
     private static let candidateCount: Int = 5
     private static let candidateTileSize: CGFloat = 56
     private static let candidateSpacing: CGFloat = 10
+    private static let paletteSheetHeight: CGFloat = 540
+    private static let pageTransition: Animation = .spring(response: 0.45, dampingFraction: 0.86)
 
     init(date: Date, entry: ColorEntry?, onChanged: @escaping () -> Void = {}) {
         self.date = date
         self.entry = entry
         self.onChanged = onChanged
+        _detent = State(initialValue: .height(Self.detailHeight(date: date, entry: entry)))
     }
 
     private var dateFormatter: DateFormatter {
@@ -103,11 +108,19 @@ struct DayDetailSheet: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .animation(.easeInOut(duration: 0.25), value: page)
+        .animation(Self.pageTransition, value: page)
         .selfSizingDetent(
-            fixed: page == .palette ? .height(540) : nil,
+            selection: $detent,
+            measured: $measuredHeight,
+            additional: [.height(Self.paletteSheetHeight)],
             initialEstimate: detailHeight
         )
+        .onChange(of: measuredHeight) { _, newValue in
+            guard page != .palette, let newValue else { return }
+            withAnimation(Self.pageTransition) {
+                detent = .height(newValue)
+            }
+        }
         .presentationDragIndicator(showFullPhoto ? .hidden : .visible)
         .presentationBackground(PaletteTheme.background)
         .sensoryFeedback(.impact(weight: .medium), trigger: selectedSwatchId)
@@ -529,15 +542,21 @@ struct DayDetailSheet: View {
         }
     }
 
+    private var dynamicDetent: PresentationDetent {
+        .height(measuredHeight ?? detailHeight)
+    }
+
     private func openPalette() {
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(Self.pageTransition) {
             page = .palette
+            detent = .height(Self.paletteSheetHeight)
         }
     }
 
     private func closePalette() {
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(Self.pageTransition) {
             page = .detail
+            detent = dynamicDetent
         }
     }
 
@@ -546,8 +565,9 @@ struct DayDetailSheet: View {
         candidateSwatches = []
         photoLoadFailed = false
         showFullPhoto = false
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(Self.pageTransition) {
             page = .palette
+            detent = .height(Self.paletteSheetHeight)
         }
     }
 
@@ -555,8 +575,9 @@ struct DayDetailSheet: View {
     private func processPhoto(item: PhotosPickerItem) async {
         photoLoadFailed = false
         if page != .preview {
-            withAnimation(.easeInOut(duration: 0.3)) {
+            withAnimation(Self.pageTransition) {
                 page = .preview
+                detent = dynamicDetent
             }
         } else {
             photoImage = nil
