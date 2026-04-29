@@ -542,10 +542,6 @@ struct DayDetailSheet: View {
         }
     }
 
-    private var dynamicDetent: PresentationDetent {
-        .height(measuredHeight ?? detailHeight)
-    }
-
     private func openPalette() {
         withAnimation(Self.pageTransition) {
             page = .palette
@@ -554,9 +550,14 @@ struct DayDetailSheet: View {
     }
 
     private func closePalette() {
+        // The current measured height belongs to the palette content; if we
+        // reuse it as the detent, the sheet barely shrinks. Drop it so the
+        // modifier falls back to detailHeight as the initial estimate, then
+        // onChange refines once the detail page actually renders.
+        measuredHeight = nil
         withAnimation(Self.pageTransition) {
             page = .detail
-            detent = dynamicDetent
+            detent = .height(detailHeight)
         }
     }
 
@@ -575,9 +576,10 @@ struct DayDetailSheet: View {
     private func processPhoto(item: PhotosPickerItem) async {
         photoLoadFailed = false
         if page != .preview {
+            measuredHeight = nil
             withAnimation(Self.pageTransition) {
                 page = .preview
-                detent = dynamicDetent
+                detent = .height(detailHeight)
             }
         } else {
             photoImage = nil
