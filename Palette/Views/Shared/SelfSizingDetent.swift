@@ -4,17 +4,21 @@ extension View {
     /// Sizes the enclosing sheet to its content's intrinsic height.
     ///
     /// - Parameters:
+    ///   - fixed: When non-nil, this detent is used and the measurement is
+    ///     ignored. Useful for pages where you want a roomier fixed height.
     ///   - additional: Extra detents the user can drag to (e.g. `.large`).
     ///   - initialEstimate: Height used for the very first frame, before the
     ///     content has been measured. A value close to the real height avoids
     ///     a one-frame visual jump.
     ///   - animateChanges: When true, content-driven height changes animate.
     func selfSizingDetent(
+        fixed: PresentationDetent? = nil,
         additional: [PresentationDetent] = [],
         initialEstimate: CGFloat = 400,
         animateChanges: Bool = true
     ) -> some View {
         modifier(SelfSizingDetentModifier(
+            fixed: fixed,
             additional: additional,
             initialEstimate: initialEstimate,
             animateChanges: animateChanges
@@ -30,6 +34,7 @@ private struct ContentHeightKey: PreferenceKey {
 }
 
 private struct SelfSizingDetentModifier: ViewModifier {
+    let fixed: PresentationDetent?
     let additional: [PresentationDetent]
     let initialEstimate: CGFloat
     let animateChanges: Bool
@@ -38,6 +43,14 @@ private struct SelfSizingDetentModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         let height = measured ?? initialEstimate
+        let detents: Set<PresentationDetent> = {
+            if let fixed {
+                return Set([fixed] + additional)
+            } else {
+                return Set([.height(height)] + additional)
+            }
+        }()
+
         content
             .background(
                 GeometryReader { geo in
@@ -50,7 +63,7 @@ private struct SelfSizingDetentModifier: ViewModifier {
                     apply(newValue)
                 }
             }
-            .presentationDetents(Set([.height(height)] + additional))
+            .presentationDetents(detents)
     }
 
     @MainActor
