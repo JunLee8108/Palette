@@ -366,7 +366,10 @@ struct DayDetailSheet: View {
 
     private func clearEntry() {
         ColorStore.delete(for: date, in: context)
-        onChanged()
+        // Don't call onChanged() — the parent uses it as a "close sheet"
+        // signal. The calendar grid is backed by a @Query that updates
+        // from the SwiftData delete on its own, so we can safely keep
+        // this sheet open and morph its content in place.
         withAnimation(Self.pageTransition) {
             entryWasCleared = true
             pendingColorHex = nil
