@@ -36,6 +36,10 @@ struct DayDetailSheet: View {
     private static let candidateSpacing: CGFloat = 10
     private static let paletteSheetHeight: CGFloat = 540
     private static let pageTransition: Animation = .spring(response: 0.45, dampingFraction: 0.86)
+    private static let contentTransition: AnyTransition = .asymmetric(
+        insertion: .opacity.animation(.easeIn(duration: 0.22).delay(0.18)),
+        removal: .opacity.animation(.easeOut(duration: 0.18))
+    )
 
     init(date: Date, entry: ColorEntry?, onChanged: @escaping () -> Void = {}) {
         self.date = date
@@ -97,18 +101,17 @@ struct DayDetailSheet: View {
     }
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             switch page {
             case .detail:
-                detailContent.transition(.opacity)
+                detailContent.transition(Self.contentTransition)
             case .palette:
-                paletteContent.transition(.opacity)
+                paletteContent.transition(Self.contentTransition)
             case .preview:
-                previewContent.transition(.opacity)
+                previewContent.transition(Self.contentTransition)
             }
         }
         .frame(maxWidth: .infinity)
-        .animation(Self.pageTransition, value: page)
         .selfSizingDetent(
             selection: $detent,
             measured: $measuredHeight,
