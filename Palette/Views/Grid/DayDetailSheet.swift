@@ -104,7 +104,10 @@ struct DayDetailSheet: View {
         }
         .frame(maxWidth: .infinity)
         .animation(.easeInOut(duration: 0.25), value: page)
-        .selfSizingDetent(initialEstimate: detailHeight)
+        .selfSizingDetent(
+            fixed: page == .palette ? .height(540) : nil,
+            initialEstimate: detailHeight
+        )
         .presentationDragIndicator(showFullPhoto ? .hidden : .visible)
         .presentationBackground(PaletteTheme.background)
         .sensoryFeedback(.impact(weight: .medium), trigger: selectedSwatchId)
@@ -283,7 +286,7 @@ struct DayDetailSheet: View {
         VStack(spacing: 16) {
             paletteHeader
 
-            Spacer(minLength: 4)
+            Spacer(minLength: 24)
 
             PaletteGrid(
                 swatches: DefaultPalette.swatches,
@@ -292,9 +295,11 @@ struct DayDetailSheet: View {
             )
             .padding(.horizontal, 28)
 
+            Spacer(minLength: 24)
+
             photoEntryLink
 
-            Spacer(minLength: 16)
+            Spacer(minLength: 24)
         }
     }
 
