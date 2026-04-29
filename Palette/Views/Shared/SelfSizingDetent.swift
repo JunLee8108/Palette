@@ -1,24 +1,34 @@
 import SwiftUI
 
 extension View {
-    /// Sizes the enclosing sheet to its content's intrinsic height.
+    /// Sizes the enclosing sheet to its content's intrinsic height, alongside
+    /// any additional fixed-height detents the caller wants to make available.
     ///
     /// - Parameters:
-    ///   - fixed: When non-nil, this detent is used and the measurement is
-    ///     ignored. Useful for pages where you want a roomier fixed height.
-    ///   - additional: Extra detents the user can drag to (e.g. `.large`).
+    ///   - selection: When provided, the caller controls which detent is
+    ///     active. Wrap the binding's mutations in `withAnimation` to share a
+    ///     single animation curve with surrounding view changes.
+    ///   - measured: Optional outbound binding that receives the most recent
+    ///     intrinsic content height. Useful when the caller wants to build a
+    ///     `.height(measured)` detent that stays in sync as content changes.
+    ///   - additional: Extra fixed-height detents (e.g. `.height(540)` for a
+    ///     roomier page or `.large`).
     ///   - initialEstimate: Height used for the very first frame, before the
     ///     content has been measured. A value close to the real height avoids
     ///     a one-frame visual jump.
-    ///   - animateChanges: When true, content-driven height changes animate.
+    ///   - animateChanges: When true, height changes from new measurements
+    ///     animate. Caller-driven `selection` changes always honor whatever
+    ///     animation transaction the caller is in.
     func selfSizingDetent(
-        fixed: PresentationDetent? = nil,
+        selection: Binding<PresentationDetent>? = nil,
+        measured: Binding<CGFloat?>? = nil,
         additional: [PresentationDetent] = [],
         initialEstimate: CGFloat = 400,
         animateChanges: Bool = true
     ) -> some View {
         modifier(SelfSizingDetentModifier(
-            fixed: fixed,
+            selection: selection,
+            measuredBinding: measured,
             additional: additional,
             initialEstimate: initialEstimate,
             animateChanges: animateChanges
@@ -34,24 +44,22 @@ private struct ContentHeightKey: PreferenceKey {
 }
 
 private struct SelfSizingDetentModifier: ViewModifier {
-    let fixed: PresentationDetent?
+    let selection: Binding<PresentationDetent>?
+    let measuredBinding: Binding<CGFloat?>?
     let additional: [PresentationDetent]
     let initialEstimate: CGFloat
     let animateChanges: Bool
 
-    @State private var measured: CGFloat? = nil
+    @State private var localMeasured: CGFloat? = nil
+
+    private var currentHeight: CGFloat {
+        (measuredBinding?.wrappedValue ?? localMeasured) ?? initialEstimate
+    }
 
     func body(content: Content) -> some View {
-        let height = measured ?? initialEstimate
-        let detents: Set<PresentationDetent> = {
-            if let fixed {
-                return Set([fixed] + additional)
-            } else {
-                return Set([.height(height)] + additional)
-            }
-        }()
+        let detents = Set([.height(currentHeight)] + additional)
 
-        content
+        return content
             .background(
                 GeometryReader { geo in
                     Color.clear
@@ -63,18 +71,42 @@ private struct SelfSizingDetentModifier: ViewModifier {
                     apply(newValue)
                 }
             }
-            .presentationDetents(detents)
+            .applyDetents(detents, selection: selection)
     }
 
     @MainActor
     private func apply(_ newValue: CGFloat) {
-        guard newValue > 0, abs(newValue - (measured ?? -1)) > 0.5 else { return }
+        let prev = (measuredBinding?.wrappedValue ?? localMeasured) ?? -1
+        guard newValue > 0, abs(newValue - prev) > 0.5 else { return }
+
+        let assign: () -> Void = {
+            if let binding = measuredBinding {
+                binding.wrappedValue = newValue
+            } else {
+                localMeasured = newValue
+            }
+        }
+
         if animateChanges {
-            withAnimation(.easeInOut(duration: 0.25)) { measured = newValue }
+            withAnimation(.easeInOut(duration: 0.25), assign)
         } else {
             var t = Transaction()
             t.disablesAnimations = true
-            withTransaction(t) { measured = newValue }
+            withTransaction(t, assign)
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func applyDetents(
+        _ detents: Set<PresentationDetent>,
+        selection: Binding<PresentationDetent>?
+    ) -> some View {
+        if let selection {
+            self.presentationDetents(detents, selection: selection)
+        } else {
+            self.presentationDetents(detents)
         }
     }
 }
