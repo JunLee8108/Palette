@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 import PaletteShared
+import ImageIO
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -595,10 +596,14 @@ struct DayDetailSheet: View {
             return
         }
 
-        photoImage = UIImage(data: data)
+        async let preparedImage: UIImage? = Task.detached(priority: .userInitiated) {
+            Self.preparedDisplayImage(from: data)
+        }.value
+        async let buckets = ColorExtractor.extract(from: data)
 
-        let buckets = await ColorExtractor.extract(from: data)
-        let matches = SwatchMatcher.top(Self.candidateCount, from: buckets, in: DefaultPalette.swatches)
+        photoImage = await preparedImage
+
+        let matches = SwatchMatcher.top(Self.candidateCount, from: await buckets, in: DefaultPalette.swatches)
 
         withAnimation(.easeInOut(duration: 0.2)) {
             candidateSwatches = matches
@@ -606,6 +611,25 @@ struct DayDetailSheet: View {
 
         if matches.isEmpty { photoLoadFailed = true }
         photoSelection = nil
+    }
+
+    /// Decode and downsample the image off the main thread so the photo
+    /// viewer doesn't have to pay the cost on first paint. Capped at
+    /// ~3000px on the long edge — enough quality through 4x pinch zoom
+    /// while keeping the GPU texture (and main-thread decode) modest.
+    nonisolated private static func preparedDisplayImage(from data: Data) -> UIImage? {
+        let maxPixelDimension: CGFloat = 3000
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelDimension
+        ]
+        if let src = CGImageSourceCreateWithData(data as CFData, nil),
+           let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, options as CFDictionary) {
+            return UIImage(cgImage: cg).preparingForDisplay() ?? UIImage(cgImage: cg)
+        }
+        return UIImage(data: data)?.preparingForDisplay() ?? UIImage(data: data)
     }
 
     private func clearEntry() {
@@ -752,7 +776,6 @@ private struct PhotoFullScreenView: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(width: imageSize.width, height: imageSize.height)
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-                    .drawingGroup()
                     .scaleEffect(appliedScale)
                     .offset(offset)
                     .position(x: centerX, y: centerY)
