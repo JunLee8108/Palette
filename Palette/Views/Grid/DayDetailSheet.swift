@@ -20,6 +20,7 @@ struct DayDetailSheet: View {
     @State private var pendingColorHex: String? = nil
     @State private var showChangeWarning: Bool = false
     @State private var showClearWarning: Bool = false
+    @State private var entryWasCleared: Bool = false
 
     private enum Page { case detail, palette }
 
@@ -54,17 +55,18 @@ struct DayDetailSheet: View {
 
     private var isToday: Bool { DayKey.isToday(date) }
     private var isFuture: Bool { ColorStore.isFuture(date) }
-    private var displayColorHex: String? { pendingColorHex ?? entry?.colorHex }
+    private var effectiveEntry: ColorEntry? { entryWasCleared ? nil : entry }
+    private var displayColorHex: String? { pendingColorHex ?? effectiveEntry?.colorHex }
     private var needsOverrideConfirmation: Bool {
-        ColorStore.requiresOverrideConfirmation(for: date, hasEntry: entry != nil)
+        ColorStore.requiresOverrideConfirmation(for: date, hasEntry: effectiveEntry != nil)
     }
     private var hasActions: Bool {
-        ColorStore.canPickColor(for: date, hasEntry: entry != nil)
-            || (ColorStore.canDelete(for: date) && entry != nil)
+        ColorStore.canPickColor(for: date, hasEntry: effectiveEntry != nil)
+            || (ColorStore.canDelete(for: date) && effectiveEntry != nil)
     }
 
     private var detailHeight: CGFloat {
-        Self.detailHeight(date: date, entry: entry)
+        Self.detailHeight(date: date, entry: effectiveEntry)
     }
 
     private static func detailHeight(date: Date, entry: ColorEntry?) -> CGFloat {
@@ -178,7 +180,7 @@ struct DayDetailSheet: View {
 
     @ViewBuilder
     private var currentTile: some View {
-        let canPick = ColorStore.canPickColor(for: date, hasEntry: entry != nil)
+        let canPick = ColorStore.canPickColor(for: date, hasEntry: effectiveEntry != nil)
         if canPick {
             Button(action: handlePickTap) {
                 tileVisual
@@ -210,8 +212,8 @@ struct DayDetailSheet: View {
 
     @ViewBuilder
     private var actionButtons: some View {
-        let canPick = ColorStore.canPickColor(for: date, hasEntry: entry != nil)
-        let canDelete = ColorStore.canDelete(for: date) && entry != nil
+        let canPick = ColorStore.canPickColor(for: date, hasEntry: effectiveEntry != nil)
+        let canDelete = ColorStore.canDelete(for: date) && effectiveEntry != nil
 
         if canPick || canDelete {
             VStack(spacing: 12) {
@@ -233,7 +235,7 @@ struct DayDetailSheet: View {
     }
 
     private var pickLabel: String {
-        if entry != nil {
+        if effectiveEntry != nil {
             return L10n.t("Change color", "색 바꾸기")
         }
         if isToday {
@@ -253,7 +255,7 @@ struct DayDetailSheet: View {
         if isFuture {
             return L10n.t("Not yet.", "아직이에요.")
         }
-        if entry == nil {
+        if effectiveEntry == nil {
             if isToday {
                 return L10n.t("No color picked yet.", "아직 색을 고르지 않았어요.")
             }
@@ -290,7 +292,7 @@ struct DayDetailSheet: View {
 
             PaletteGrid(
                 swatches: DefaultPalette.swatches,
-                selectedId: selectedSwatchId ?? entry?.swatchId,
+                selectedId: selectedSwatchId ?? effectiveEntry?.swatchId,
                 onSelect: handleSelect
             )
             .padding(.horizontal, 28)
@@ -365,7 +367,11 @@ struct DayDetailSheet: View {
     private func clearEntry() {
         ColorStore.delete(for: date, in: context)
         onChanged()
-        dismiss()
+        withAnimation(Self.pageTransition) {
+            entryWasCleared = true
+            pendingColorHex = nil
+            selectedSwatchId = nil
+        }
     }
 
     private func handleSelect(_ swatch: PaletteSwatch) {
