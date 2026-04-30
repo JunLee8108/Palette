@@ -21,6 +21,7 @@ struct DayDetailSheet: View {
     @State private var showChangeWarning: Bool = false
     @State private var showClearWarning: Bool = false
     @State private var entryWasCleared: Bool = false
+    @State private var hadEntryAtOpen: Bool
 
     private enum Page { case detail, palette }
 
@@ -36,7 +37,9 @@ struct DayDetailSheet: View {
         self.date = date
         self.entry = entry
         self.onChanged = onChanged
-        _detent = State(initialValue: .height(Self.detailHeight(date: date, entry: entry)))
+        let initialHasEntry = entry != nil
+        _hadEntryAtOpen = State(initialValue: initialHasEntry)
+        _detent = State(initialValue: .height(Self.detailHeight(date: date, hasEntry: initialHasEntry)))
     }
 
     private var dateFormatter: DateFormatter {
@@ -61,16 +64,15 @@ struct DayDetailSheet: View {
         ColorStore.requiresOverrideConfirmation(for: date, hasEntry: effectiveEntry != nil)
     }
     private var hasActions: Bool {
-        ColorStore.canPickColor(for: date, hasEntry: entry != nil)
-            || (ColorStore.canDelete(for: date) && entry != nil)
+        ColorStore.canPickColor(for: date, hasEntry: hadEntryAtOpen)
+            || (ColorStore.canDelete(for: date) && hadEntryAtOpen)
     }
 
     private var detailHeight: CGFloat {
-        Self.detailHeight(date: date, entry: entry)
+        Self.detailHeight(date: date, hasEntry: hadEntryAtOpen)
     }
 
-    private static func detailHeight(date: Date, entry: ColorEntry?) -> CGFloat {
-        let hasEntry = entry != nil
+    private static func detailHeight(date: Date, hasEntry: Bool) -> CGFloat {
         let hasStatus = ColorStore.isFuture(date) || !hasEntry
         let canPick = ColorStore.canPickColor(for: date, hasEntry: hasEntry)
         let canDelete = ColorStore.canDelete(for: date) && hasEntry
@@ -180,7 +182,7 @@ struct DayDetailSheet: View {
 
     @ViewBuilder
     private var currentTile: some View {
-        let canPick = ColorStore.canPickColor(for: date, hasEntry: entry != nil)
+        let canPick = ColorStore.canPickColor(for: date, hasEntry: hadEntryAtOpen)
         if canPick {
             Button(action: handlePickTap) {
                 tileVisual
@@ -212,8 +214,8 @@ struct DayDetailSheet: View {
 
     @ViewBuilder
     private var actionButtons: some View {
-        let canPick = ColorStore.canPickColor(for: date, hasEntry: entry != nil)
-        let canDelete = ColorStore.canDelete(for: date) && entry != nil
+        let canPick = ColorStore.canPickColor(for: date, hasEntry: hadEntryAtOpen)
+        let canDelete = ColorStore.canDelete(for: date) && hadEntryAtOpen
 
         if canPick || canDelete {
             VStack(spacing: 12) {
@@ -237,7 +239,7 @@ struct DayDetailSheet: View {
     }
 
     private var pickLabel: String {
-        if entry != nil {
+        if hadEntryAtOpen {
             return L10n.t("Change color", "색 바꾸기")
         }
         if isToday {
@@ -257,7 +259,7 @@ struct DayDetailSheet: View {
         if isFuture {
             return L10n.t("Not yet.", "아직이에요.")
         }
-        if entry == nil {
+        if !hadEntryAtOpen {
             if isToday {
                 return L10n.t("No color picked yet.", "아직 색을 고르지 않았어요.")
             }
