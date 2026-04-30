@@ -367,9 +367,15 @@ struct StripesLayout: View {
         }
     }
 
+    private var isFullyEmpty: Bool {
+        data.colorsByKey.isEmpty
+    }
+
     var body: some View {
         Group {
-            if options.stripesOrientation == .horizontal {
+            if isFullyEmpty {
+                options.background.color
+            } else if options.stripesOrientation == .horizontal {
                 HStack(spacing: 0) {
                     ForEach(Array(stripeColors.enumerated()), id: \.offset) { _, color in
                         color.frame(maxWidth: .infinity, maxHeight: .infinity)
