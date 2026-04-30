@@ -96,9 +96,11 @@ struct DayDetailSheet: View {
         ZStack(alignment: .top) {
             switch page {
             case .detail:
-                detailContent
-                    .id(entryWasCleared)
-                    .transition(Self.contentTransition)
+                if entryWasCleared {
+                    detailContent.transition(Self.contentTransition)
+                } else {
+                    detailContent.transition(Self.contentTransition)
+                }
             case .palette:
                 paletteContent.transition(Self.contentTransition)
             }
